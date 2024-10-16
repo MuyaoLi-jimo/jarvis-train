@@ -1,0 +1,16 @@
+data/
+logs/
+models/
+checkpoints/
+submodules/
+out/
+tmp/
+trash/
+wandb/
+ultron.egg-info/
+
+out
+tmp
+checkpoints
+
+*.pyc
