@@ -146,6 +146,7 @@ class MultimodalDataCollator:
                     else:
                         image = Image.open(image_path)
                         if self.resize_image:
+                        
                             image = image.resize(self.default_image_size)
                         # 创建一个 transform 对象，将 PIL.Image 转换为 Tensor
                         transform = transforms.ToTensor()
@@ -226,7 +227,7 @@ if __name__ == "__main__":
     model.config.use_cache = False
 
 
-    image_fold = ""
+    image_fold = "/home/mc_lmy/datas/10-08_craft-10_dataset/image"
     data_collator = MultimodalDataCollator(processor, image_folder=image_fold,max_seq_length = training_args.max_seq_length)
 
     ################
