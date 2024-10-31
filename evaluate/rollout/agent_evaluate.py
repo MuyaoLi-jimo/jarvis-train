@@ -2,25 +2,33 @@ import argparse
 import time
 import av
 import cv2
+import einops
 from rich import print
+from tqdm import tqdm
 from jarvis.stark_tech.env_interface import MinecraftWrapper
 import evaluate.rollout.agent_wrapper as agent_wrapper
-
+import ray
 
 def resize_image(img, target_resolution = (224, 224)):
     return cv2.resize(img, dsize=target_resolution, interpolation=cv2.INTER_LINEAR)
 
 
-def evaluate(args):
-    container = av.open("env_test.mp4", mode='w', format='mp4')
+def evaluate(video_path,checkpoints,env_config,model_config:dict,device="cuda:0",api_base=None,verbos=False):
+
+    container = av.open(video_path, mode='w', format='mp4')
     stream = container.add_stream('h264', rate=20)
     stream.width = 640
     stream.height = 360
     stream.pix_fmt = 'yuv420p'
     
-    env = MinecraftWrapper(args.env, prev_action_obs=True)
-    #agent = agent_wrapper.Agent(checkpoint_path=args.checkpoints,device=args.device)
-    
+    env = MinecraftWrapper(env_config, prev_action_obs=True)
+    agent = None
+    if type(api_base)!=type(None):
+        agent = agent_wrapper.VLLM_AGENT(checkpoint_path=checkpoints,openai_api_base=api_base,**model_config)
+    else:
+        agent = agent_wrapper.Agent(checkpoint_path=checkpoints,device=device,**model_config)
+        
+
     instructions = []
     for name, conf in env._env.task_conf.items():
         instructions.append(env._env.task_conf[name]["text"])
@@ -59,12 +67,13 @@ def evaluate(args):
     """
     from queue import Queue
     fps_queue = Queue()
-    for i in range(600):
+    for i in range(200):
         time_start = time.time()
-        #action = agent.forward()
-        action = env.action_space.sample()
+        action = agent.forward([obs["img"]],instructions,verbos=verbos)
+        if verbos:
+            print(action)
         obs, reward, terminated, truncated, info = env.step(action)
-        # import ipdb; ipdb.set_trace()
+        
         if terminated:
             obs, info = env.reset()
         time_end = time.time()
@@ -94,10 +103,60 @@ def evaluate(args):
     container.close()
     env.close()
 
+@ray.remote
+def evaluate_wrapper(video_path,checkpoints,env_config,api_base,verbos,model_config):
+    """只使用vllm，因此不需要设备和checkpoints """
+
+    evaluate(video_path=video_path,checkpoints=checkpoints,env_config=env_config,api_base=api_base,verbos=verbos,model_config=model_config)
+    print(video_path.split("/")[-1].split(".")[0])
+    return video_path.split("/")[-1].split(".")[0]
+
+def multi_evaluate(args):
+
+    ray.init()
+    import os
+    from pathlib import Path
+    video_fold  = os.path.join(args.video_main_fold, args.checkpoints.split("/")[-1])
+    if not os.path.exists(video_fold):
+        Path(video_fold).mkdir(parents=True,exist_ok=True)
+    
+    model_config = dict(
+        temperature=args.temperature
+    )
+
+    result_ids = [evaluate_wrapper.remote(video_path=os.path.join(video_fold,f"{i}.mp4"),checkpoints=args.checkpoints,env_config=args.env_config,api_base=args.api_base,verbos=False,model_config=model_config) for i in range(args.workers)]
+    futures = result_ids
+    while len(futures) > 0:
+        ready_futures, rest_futures = ray.wait(futures,timeout=24*60*60)
+        results = ray.get(ready_futures,timeout=60*60)  # Retrieve all results
+        print(f"part frames IDs: {results} done!")
+        futures = rest_futures
+    ray.shutdown()
+    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='jarvis-rt2/base') #vpt/test_vpt
-    parser.add_argument('--checkpoints', type=str, default='') #vpt/test_vpt
-    parser.add_argument('--device',type=str,default="cuda:0")
+    parser.add_argument('--workers', type=int, default=6) 
+    parser.add_argument('--env_config', type=str, default='jarvis-rt2/craft_crafting_table') #vpt/test_vpt
+    parser.add_argument('--checkpoints', type=str, default="/scratch/mc_lmy/models/mc-llava_v1.6_mistral_7b-LORA-embodied_mini_10-30-craft-craft_table-shell_agent-normal-mistral-10-30-A100-c4-e10-b16-a1-576")
+    #/home/mc_lmy/model/mc-llava_v1.6_vicuna_mistral_7b-LORA-embodied_mini_craft_10-10-08-llava-v1.6-A100-c4-e3-b16-a4-800") #vpt/test_vpt
+    parser.add_argument('--device',type=str,default="cuda:7")
+    parser.add_argument('--api_base',type=str,default='http://localhost:9003/v1')
+    parser.add_argument('--video_main_fold',type=str,default='/scratch/mc_lmy/evaluate')
+
+    parser.add_argument('--temperature',type=int,default=0.5)
     args = parser.parse_args()
-    evaluate(args)
+
+    model_config = dict(
+        temperature=args.temperature
+    )
+
+    if not args.api_base:
+        args.api_base=None
+    if args.workers==0:
+        evaluate(video_path=f"{args.checkpoints.split('/')[-1]}.mp4",checkpoints = args.checkpoints,env_config = args.env_config,device=args.device,verbos=True,model_config=model_config)
+    elif args.workers==1:
+        evaluate(video_path=f"{args.checkpoints.split('/')[-1]}.mp4",checkpoints = args.checkpoints,env_config = args.env_config,api_base=args.api_base,model_config=model_config)
+    elif args.workers>1:
+        multi_evaluate(args)
+    

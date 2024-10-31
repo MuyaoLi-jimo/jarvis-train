@@ -36,7 +36,7 @@ from trl import (
     get_kbit_device_map,
 )
 from rich import print
-from ultron.model.train.utils import prepare_conversation_text, print_trainable_parameters
+from ultron.model.train.utils import prepare_conversation_text_with_images, print_trainable_parameters
 
 tqdm.pandas()
 
@@ -52,7 +52,7 @@ class MultimodalDataCollator:
         self.processor = processor
         self.image_folder = image_folder
         self.with_image = with_image
-        self.resize_image = True
+        self.resize_image = resize_image
         self.random_image_width = 224
         self.random_image_height = 224
         self.default_image_size = (672,336) # with this image size, the llava-next will split it into 3 patches, not 5 pathces in 640*360åœ
@@ -67,63 +67,16 @@ class MultimodalDataCollator:
             images = None
 
         for example in examples:
-            # DISCARD -> use unified prepare_conversation_text function ! 
-            # messages = example["conversations"]
-            # processed_messages = []
-            # for message in messages:
-            #     processed_message_role = message["role"]
-            #     processed_message_content = ""
-            #     for item in message["content"]:
-            #         if item["type"] == "text":
-            #             processed_message_content += item["text"]
-            #         elif item["type"] == "image":
-            #             processed_message_content += "<image>"
-            #     processed_messages.append({"role": processed_message_role, "content": processed_message_content})
-
-            # if not example['image']:
-            #     print("No image found in the example, set a random image instead.")
-            #     processed_messages[0]['content'] = '<image>\nThe image has nothing in it, ignore the image.\n' + processed_messages[0]['content']
-
-            # text = self.processor.tokenizer.apply_chat_template(
-            #     processed_messages, tokenize=False, add_generation_prompt=False
-            # )
             if 'text' in example.keys():
                 text = example['text']
             elif 'conversations' in example.keys():
-                text = prepare_conversation_text(example, self.processor.tokenizer)
+                text = prepare_conversation_text_with_images(example, self.processor.tokenizer)  #合并<image>，并转化为加入chat template的版本
             else:
                 print('No text or conversations found in example')
                 text = ''
                 # continue
             texts.append(text)
-
-            # if not self.with_image:
-            #     continue
-
-            # if not example['image']:
-            #     if self.no_image_policy == 'random':
-            #         print("No image found in the example, set a random image instead.")
-            #         random_image_dim = [self.random_image_width, self.random_image_height]
-            #         image = torch.rand(3, *random_image_dim)
-            #         images.append(image)
-            # else:
-            #     # image_path = os.path.join(self.image_folder, example['image'])
-            #     image_path = example['image']
-            #     if not os.path.exists(image_path):
-            #         print(f"Image file {image_path} not found ..")
-            #         if self.no_image_policy == 'random':
-            #             print("set a random image instead.")
-            #             random_image_dim = [self.random_image_width, self.random_image_height]
-            #             image = torch.rand(3, *random_image_dim)
-            #             images.append(image)
-            #     else:
-            #         image = Image.open(image_path)
-            #         # 创建一个 transform 对象，将 PIL.Image 转换为 Tensor
-            #         transform = transforms.ToTensor()
-            #         # 将图像转换为 Tensor
-            #         tensor_image = transform(image)
-            #         # images.append(image)
-            #         images.append(tensor_image)
+            # 处理图片
             if example['image'] and self.with_image:
                 if isinstance(example['image'], list):
                     image_paths = example['image']
@@ -133,7 +86,7 @@ class MultimodalDataCollator:
                     raise ValueError("example_image must be a string or a list of strings.")
                 
                 for image_path in image_paths:
-                    if image_path[0]!="/":
+                    if image_path[0]!="/": #if not abs path
                         image_path = pathlib.Path(self.image_folder)/image_path
                     else:
                         image_path = pathlib.Path(image_path)
@@ -146,7 +99,6 @@ class MultimodalDataCollator:
                     else:
                         image = Image.open(image_path)
                         if self.resize_image:
-                        
                             image = image.resize(self.default_image_size)
                         # 创建一个 transform 对象，将 PIL.Image 转换为 Tensor
                         transform = transforms.ToTensor()
@@ -157,10 +109,22 @@ class MultimodalDataCollator:
         if self.with_image and len(images) == 0:
             images = None
         batch = self.processor(text = texts, images = images, return_tensors="pt", padding='max_length', max_length=self.max_seq_length, truncation=True)
-        # batch = self.processor(text = texts, images = images, return_tensors="pt", padding=True)
-        # import pdb; pdb.set_trace()
+        
         labels = batch["input_ids"].clone()
-        # TODO: add back 
+        # TODO: add back -- 非常重要
+        for label in labels:
+            np_label = np.array(label)
+            instruction_beg_token_ids =  np.array(processor.tokenizer("[INST]").input_ids[1:]) #remove <s>
+            instruction_end_token_ids = np.array(processor.tokenizer("[/INST]").input_ids[1:]) #remove <s>
+            padding_len = sum(label==processor.tokenizer.pad_token_id)
+            cur_len = padding_len + 2 #tokenizer：1<s>，chat_template:1<s>
+            label[padding_len:cur_len] = -100
+            label_len,beg_len,end_len = len(label), len(instruction_beg_token_ids), len(instruction_end_token_ids)
+            beg_matches = np.where((np_label[np.arange(label_len - beg_len + 1)[:, None] + np.arange(beg_len)] == instruction_beg_token_ids).all(axis=1))[0].tolist()
+            end_matches = np.where((np_label[np.arange(label_len - end_len + 1)[:, None] + np.arange(end_len)] == instruction_end_token_ids).all(axis=1))[0].tolist()
+            assert len(beg_matches)==len(end_matches)
+            for instruction_beg_idx,instruction_end_idx in zip(beg_matches,end_matches):
+                label[instruction_beg_idx:instruction_end_idx]= -100
         if self.processor.tokenizer.pad_token_id is not None:
             labels[labels == self.processor.tokenizer.pad_token_id] = -100
         batch["labels"] = labels
@@ -200,7 +164,12 @@ if __name__ == "__main__":
     )
 
     if 'llava-next' in model_config.model_name_or_path or 'llava-v1.6' in model_config.model_name_or_path:
-        processor = LlavaNextProcessor.from_pretrained(model_config.model_name_or_path)
+        processor_config = dict(
+            do_rescale=False,
+            patch_size=14,
+            vision_feature_select_strategy="default"
+        )
+        processor = LlavaNextProcessor.from_pretrained(model_config.model_name_or_path,**processor_config)
         model = LlavaNextForConditionalGeneration.from_pretrained(model_config.model_name_or_path, **model_kwargs)
     elif 'llava-1.5' in model_config.model_name_or_path or 'llava-gemma' in model_config.model_name_or_path:
         processor = LlavaProcessor.from_pretrained(model_config.model_name_or_path)
@@ -226,9 +195,11 @@ if __name__ == "__main__":
     # Ensure use_cache is set to False
     model.config.use_cache = False
 
-
-    image_fold = "/home/mc_lmy/datas/10-08_craft-10_dataset/image"
-    data_collator = MultimodalDataCollator(processor, image_folder=image_fold,max_seq_length = training_args.max_seq_length)
+    image_fold = pathlib.Path(sft_script_args.dataset_name).parent
+    if 'llava-next' in model_config.model_name_or_path or 'llava-v1.6' in model_config.model_name_or_path:
+        data_collator = MultimodalDataCollator(processor, image_folder=image_fold,max_seq_length = training_args.max_seq_length)
+    else:
+        raise ValueError(f"be careful! do not write a code for it  {model_config.model_name_or_path}")
 
     ################
     # Dataset
@@ -259,7 +230,8 @@ if __name__ == "__main__":
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         training_args.resume_from_checkpoint = True
         
-    with init_context:
+
+    with init_context:  #使用trl自带的输出增强
         trainer = SFTTrainer(
             model=model,
             args=training_args,

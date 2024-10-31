@@ -20,6 +20,7 @@ deepspeed --include localhost:$cuda_visible_devices --master_port=$training_port
     --dataset_name $dataset_name \
     --model_name_or_path "/nfs-shared/models/llama3-llava-next-8b-hf" \
     --report_to "wandb" \
+    --dataloader_num_workers 8 \
     --learning_rate $learning_rate \
     --weight_decay 0. \
     --warmup_ratio 0.03 \

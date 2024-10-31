@@ -1,6 +1,8 @@
 import re
 import numpy as np
 from collections import OrderedDict
+from typing import Union
+import torch
 from jarvis.arm.utils.vpt_lib.actions import  ActionTransformer,Buttons
 from jarvis.arm.utils.vpt_lib.action_mapping import CameraHierarchicalMapping
 
@@ -33,7 +35,7 @@ Llama-2, Vicuna-v1.5
     ('차', 31817), ('학', 31822), ('만', 31826), ('터', 31856), ('식', 31895), ('과', 31906), ('타', 31925), ('종', 31930), ('내', 31940), ('중', 31941), ('방', 31945), 
     ('월', 31950), ('회', 31953), ('모', 31962), ('바', 31963), ('음', 31966), ('재', 31973), ('명', 31976), ('합', 31980), ('역', 31987), ('백', 31989), ('왕', 31996), 
 ]
-llava-v1.6 (llava-v1.6-mistral-7b-hf,llava-v1.6-vicuna-13b-hf,llava-v1.6-vicuna-7b-hf )
+mistral (llava-v1.6-mistral-7b-hf)
 [
     ('朱', 31947),('ǝ', 31948),('Ḩ', 31949),('担', 31950),('灰', 31951), ('讲', 31952), ('롤', 31953),('😤', 31955),('ោ', 31956),('애', 31957),
     ('였', 31958),('질', 31959),('振', 31960),
@@ -86,7 +88,7 @@ def map_control_token(num:int, place:int, tokenizer_type:str = "llama-2",not_tex
             (('차', 31817), ('학', 31822), ('만', 31826), ('터', 31856), ('식', 31895), ('과', 31906), ('타', 31925), ('종', 31930), ('내', 31940), ('중', 31941), ('방', 31945)),
             (('월', 31950), ('회', 31953), ('모', 31962), ('바', 31963), ('음', 31966), ('재', 31973), ('명', 31976), ('합', 31980), ('역', 31987), ('백', 31989), ('왕', 31996)),
         ]
-    elif tokenizer_type == "llava-v1.6":
+    elif tokenizer_type == "mistral":
         special_tokens = [
             (('朱', 31947),('ǝ', 31948),('Ḩ', 31949),('担', 31950),('灰', 31951), ('讲', 31952), ('롤', 31953),('😤', 31955),('ោ', 31956),('애', 31957),),
             (('였', 31958),('질', 31959),('振', 31960),),
@@ -127,93 +129,123 @@ def prepare_for_remap_control_token(tokenizer_type:str = "llama-2",bases:list = 
             tokens[token]=(i,j)
     return tokens
 
-def remap_control_token(token:str, tokenizer_type:str = "llama-2")->tuple:
+def remap_control_token(token:str,use_num=True, tokenizer_type:str = "llama-2")->tuple:
     """由token映射到action，注意，虽然把camera从token中去掉，但是还需要它 """
     re_tokens = {}
     if tokenizer_type == "llama-2":
-        re_tokens = {
-            '진': (0, 0),'জ': (0, 1),'천': (0, 2),'년': (0, 3),'세': (0, 4),'민': (0, 5),'ർ': (0, 6),'ἡ': (0, 7),'호': (0, 8),'ਰ': (0, 9),
-            '그': (1, 0),'න': (1, 1),'ན': (1, 2),
-            'ゆ': (2, 0),'ご': (2, 1),'현': (2, 2),
-            '군': (3, 0),'무': (3, 1),'위': (3, 2),
-            '안': (4, 0),'박': (4, 1),
-            '용': (5, 0),'단': (5, 1),
-            '면': (6, 0),'남': (6, 1),
-            '강': (7, 0),'씨': (7, 1),
-            '개': (8, 0),'들': (8, 1),
-            '차': (9, 0),'학': (9, 1),'만': (9, 2),'터': (9, 3),'식': (9, 4),'과': (9, 5),'타': (9, 6),'종': (9, 7),'내': (9, 8),'중': (9, 9),'방': (9, 10),
-            '월': (10, 0),'회': (10, 1),'모': (10, 2),'바': (10, 3),'음': (10, 4),'재': (10, 5),'명': (10, 6),'합': (10, 7),'역': (10, 8),'백': (10, 9),'왕': (10, 10)
-        }
-    elif tokenizer_type=="llava-v1.6":
-        re_tokens = {
-            '朱': (0, 0),'ǝ': (0, 1),'Ḩ': (0, 2),'担': (0, 3),'灰': (0, 4),'讲': (0, 5),'롤': (0, 6),'😤': (0, 7),'ោ': (0, 8),'애': (0, 9),
-            '였': (1, 0),'질': (1, 1),'振': (1, 2),
-            '灯': (2, 0),'ĉ': (2, 1),'ස': (2, 2),
-            '閉': (3, 0),'램': (3, 1),'ಂ': (3, 2),
-            'げ': (4, 0),'ふ': (4, 1),
-            '狂': (5, 0),'融': (5, 1),
-            '仍': (6, 0),'實': (6, 1),
-            '楽': (7, 0),'範': (7, 1),
-            'వ': (8, 0),'嵌': (8, 1),
-            '摩': (9, 0),'袁': (9, 1),'ষ': (9, 2),'乎': (9, 3),'규': (9, 4),'岗': (9, 5),'糊': (9, 6),'క': (9, 7),'雲': (9, 8),'심': (9, 9),'ई': (9, 10),
-            'འ': (10, 0),'ἡ': (10, 1),'丝': (10, 2),'Ħ': (10, 3),'伝': (10, 4),'컨': (10, 5),'အ': (10, 6),'執': (10, 7),'벨': (10, 8),'ゼ': (10, 9),'梦': (10, 10)
-        }
+        if use_num:
+            re_tokens = {31536:(0, 0), 31537:(0, 1), 31563:(0, 2), 31571:(0, 3), 31578:(0, 4), 31582:(0, 5), 31585:(0, 6), 31598:(0, 7), 31603:(0, 8), 31604:(0, 9), 31607:(1, 0), 31609:(1, 1), 31614:(1, 2), 31621:(2, 0), 31622:(2, 1), 31680:(2, 2), 31699:(3, 0), 31716:(3, 1), 31724:(3, 2), 31734:(4, 0), 31736:(4, 1), 31737:(5, 0), 31746:(5, 1), 31747:(6, 0), 31754:(6, 1), 31774:(7, 0), 31781:(7, 1), 31789:(8, 0), 31804:(8, 1), 31817:(9, 0), 31822:(9, 1), 31826:(9, 2), 31856:(9, 3), 31895:(9, 4), 31906:(9, 5), 31925:(9, 6), 31930:(9, 7), 31940:(9, 8), 31941:(9, 9), 31945:(9, 10), 31950:(10, 0), 31953:(10, 1), 31962:(10, 2), 31963:(10, 3), 31966:(10, 4), 31973:(10, 5), 31976:(10, 6), 31980:(10, 7), 31987:(10, 8), 31989:(10, 9), 31996:(10, 10)}
+        else:
+            re_tokens = {
+                '진': (0, 0),'জ': (0, 1),'천': (0, 2),'년': (0, 3),'세': (0, 4),'민': (0, 5),'ർ': (0, 6),'ἡ': (0, 7),'호': (0, 8),'ਰ': (0, 9),
+                '그': (1, 0),'න': (1, 1),'ན': (1, 2),
+                'ゆ': (2, 0),'ご': (2, 1),'현': (2, 2),
+                '군': (3, 0),'무': (3, 1),'위': (3, 2),
+                '안': (4, 0),'박': (4, 1),
+                '용': (5, 0),'단': (5, 1),
+                '면': (6, 0),'남': (6, 1),
+                '강': (7, 0),'씨': (7, 1),
+                '개': (8, 0),'들': (8, 1),
+                '차': (9, 0),'학': (9, 1),'만': (9, 2),'터': (9, 3),'식': (9, 4),'과': (9, 5),'타': (9, 6),'종': (9, 7),'내': (9, 8),'중': (9, 9),'방': (9, 10),
+                '월': (10, 0),'회': (10, 1),'모': (10, 2),'바': (10, 3),'음': (10, 4),'재': (10, 5),'명': (10, 6),'합': (10, 7),'역': (10, 8),'백': (10, 9),'왕': (10, 10)
+            }
+    elif tokenizer_type=="mistral":
+        if use_num:
+            re_tokens = {31947:(0, 0), 31948:(0, 1), 31949:(0, 2), 31950:(0, 3), 31951:(0, 4), 31952:(0, 5), 31953:(0, 6), 31955:(0, 7), 31956:(0, 8), 31957:(0, 9), 31958:(1, 0), 31959:(1, 1), 31960:(1, 2), 31961:(2, 0), 31962:(2, 1), 31963:(2, 2), 31964:(3, 0), 31965:(3, 1), 31966:(3, 2), 31967:(4, 0), 31896:(4, 1), 31969:(5, 0), 31970:(5, 1), 31971:(6, 0), 31972:(6, 1), 31973:(7, 0), 31974:(7, 1), 31976:(8, 0), 31977:(8, 1), 31978:(9, 0), 31979:(9, 1), 31980:(9, 2), 31981:(9, 3), 31982:(9, 4), 31983:(9, 5), 31984:(9, 6), 31985:(9, 7), 31986:(9, 8), 31987:(9, 9), 31988:(9, 10), 31989:(10, 0), 31990:(10, 1), 31991:(10, 2), 31992:(10, 3), 31993:(10, 4), 31885:(10, 5), 31995:(10, 6), 31996:(10, 7), 31997:(10, 8), 31998:(10, 9), 31999:(10, 10)}
+        else:
+            re_tokens = {
+                '朱': (0, 0),'ǝ': (0, 1),'Ḩ': (0, 2),'担': (0, 3),'灰': (0, 4),'讲': (0, 5),'롤': (0, 6),'😤': (0, 7),'ោ': (0, 8),'애': (0, 9),
+                '였': (1, 0),'질': (1, 1),'振': (1, 2),
+                '灯': (2, 0),'ĉ': (2, 1),'ස': (2, 2),
+                '閉': (3, 0),'램': (3, 1),'ಂ': (3, 2),
+                'げ': (4, 0),'ふ': (4, 1),
+                '狂': (5, 0),'融': (5, 1),
+                '仍': (6, 0),'實': (6, 1),
+                '楽': (7, 0),'範': (7, 1),
+                'వ': (8, 0),'嵌': (8, 1),
+                '摩': (9, 0),'袁': (9, 1),'ষ': (9, 2),'乎': (9, 3),'규': (9, 4),'岗': (9, 5),'糊': (9, 6),'క': (9, 7),'雲': (9, 8),'심': (9, 9),'ई': (9, 10),
+                'འ': (10, 0),'ἡ': (10, 1),'丝': (10, 2),'Ħ': (10, 3),'伝': (10, 4),'컨': (10, 5),'အ': (10, 6),'執': (10, 7),'벨': (10, 8),'ゼ': (10, 9),'梦': (10, 10)
+            }
     elif tokenizer_type=="llama-3":
-        re_tokens = {
-            '<|reserved_special_token_200|>': (0, 0),'<|reserved_special_token_201|>': (0, 1),'<|reserved_special_token_202|>': (0, 2),'<|reserved_special_token_203|>': (0, 3),'<|reserved_special_token_204|>': (0, 4),'<|reserved_special_token_205|>': (0, 5),'<|reserved_special_token_206|>': (0, 6),'<|reserved_special_token_207|>': (0, 7),'<|reserved_special_token_208|>': (0, 8),'<|reserved_special_token_209|>': (0, 9),
-            '<|reserved_special_token_210|>': (1, 0),'<|reserved_special_token_211|>': (1, 1),'<|reserved_special_token_212|>': (1, 2),
-            '<|reserved_special_token_213|>': (2, 0),'<|reserved_special_token_214|>': (2, 1),'<|reserved_special_token_215|>': (2, 2),
-            '<|reserved_special_token_216|>': (3, 0),'<|reserved_special_token_217|>': (3, 1),'<|reserved_special_token_218|>': (3, 2),
-            '<|reserved_special_token_219|>': (4, 0),'<|reserved_special_token_220|>': (4, 1),
-            '<|reserved_special_token_221|>': (5, 0),'<|reserved_special_token_222|>': (5, 1),
-            '<|reserved_special_token_223|>': (6, 0),'<|reserved_special_token_224|>': (6, 1),
-            '<|reserved_special_token_225|>': (7, 0),'<|reserved_special_token_226|>': (7, 1),
-            '<|reserved_special_token_227|>': (8, 0),'<|reserved_special_token_228|>': (8, 1),
-            '<|reserved_special_token_229|>': (9, 0),'<|reserved_special_token_230|>': (9, 1),'<|reserved_special_token_231|>': (9, 2),'<|reserved_special_token_232|>': (9, 3),'<|reserved_special_token_233|>': (9, 4),'<|reserved_special_token_234|>': (9, 5),'<|reserved_special_token_235|>': (9, 6),'<|reserved_special_token_236|>': (9, 7),'<|reserved_special_token_237|>': (9, 8),'<|reserved_special_token_238|>': (9, 9),'<|reserved_special_token_239|>': (9, 10),
-            '<|reserved_special_token_240|>': (10, 0),'<|reserved_special_token_241|>': (10, 1),'<|reserved_special_token_242|>': (10, 2),'<|reserved_special_token_243|>': (10, 3),'<|reserved_special_token_244|>': (10, 4),'<|reserved_special_token_245|>': (10, 5),'<|reserved_special_token_246|>': (10, 6),'<|reserved_special_token_247|>': (10, 7),'<|reserved_special_token_248|>': (10, 8),'<|reserved_special_token_249|>': (10, 9),'<|reserved_special_token_250|>': (10, 10)
-        }
+        if use_num:
+            re_tokens={128205:(0, 0), 128206:(0, 1), 128207:(0, 2), 128208:(0, 3), 128209:(0, 4), 128210:(0, 5), 128211:(0, 6), 128212:(0, 7), 128213:(0, 8), 128214:(0, 9), 128215:(1, 0), 128216:(1, 1), 128217:(1, 2), 128218:(2, 0), 128219:(2, 1), 128220:(2, 2), 128221:(3, 0), 128222:(3, 1), 128223:(3, 2), 128224:(4, 0), 128225:(4, 1), 128226:(5, 0), 128227:(5, 1), 128228:(6, 0), 128229:(6, 1), 128230:(7, 0), 128231:(7, 1), 128232:(8, 0), 128233:(8, 1), 128234:(9, 0), 128235:(9, 1), 128236:(9, 2), 128237:(9, 3), 128238:(9, 4), 128239:(9, 5), 128240:(9, 6), 128241:(9, 7), 128242:(9, 8), 128243:(9, 9), 128244:(9, 10), 128245:(10, 0), 128246:(10, 1), 128247:(10, 2), 128248:(10, 3), 128249:(10, 4), 128250:(10, 5), 128251:(10, 6), 128252:(10, 7), 128253:(10, 8), 128254:(10, 9), 128255:(10, 10)}
+        else:
+            re_tokens = {
+                '<|reserved_special_token_200|>': (0, 0),'<|reserved_special_token_201|>': (0, 1),'<|reserved_special_token_202|>': (0, 2),'<|reserved_special_token_203|>': (0, 3),'<|reserved_special_token_204|>': (0, 4),'<|reserved_special_token_205|>': (0, 5),'<|reserved_special_token_206|>': (0, 6),'<|reserved_special_token_207|>': (0, 7),'<|reserved_special_token_208|>': (0, 8),'<|reserved_special_token_209|>': (0, 9),
+                '<|reserved_special_token_210|>': (1, 0),'<|reserved_special_token_211|>': (1, 1),'<|reserved_special_token_212|>': (1, 2),
+                '<|reserved_special_token_213|>': (2, 0),'<|reserved_special_token_214|>': (2, 1),'<|reserved_special_token_215|>': (2, 2),
+                '<|reserved_special_token_216|>': (3, 0),'<|reserved_special_token_217|>': (3, 1),'<|reserved_special_token_218|>': (3, 2),
+                '<|reserved_special_token_219|>': (4, 0),'<|reserved_special_token_220|>': (4, 1),
+                '<|reserved_special_token_221|>': (5, 0),'<|reserved_special_token_222|>': (5, 1),
+                '<|reserved_special_token_223|>': (6, 0),'<|reserved_special_token_224|>': (6, 1),
+                '<|reserved_special_token_225|>': (7, 0),'<|reserved_special_token_226|>': (7, 1),
+                '<|reserved_special_token_227|>': (8, 0),'<|reserved_special_token_228|>': (8, 1),
+                '<|reserved_special_token_229|>': (9, 0),'<|reserved_special_token_230|>': (9, 1),'<|reserved_special_token_231|>': (9, 2),'<|reserved_special_token_232|>': (9, 3),'<|reserved_special_token_233|>': (9, 4),'<|reserved_special_token_234|>': (9, 5),'<|reserved_special_token_235|>': (9, 6),'<|reserved_special_token_236|>': (9, 7),'<|reserved_special_token_237|>': (9, 8),'<|reserved_special_token_238|>': (9, 9),'<|reserved_special_token_239|>': (9, 10),
+                '<|reserved_special_token_240|>': (10, 0),'<|reserved_special_token_241|>': (10, 1),'<|reserved_special_token_242|>': (10, 2),'<|reserved_special_token_243|>': (10, 3),'<|reserved_special_token_244|>': (10, 4),'<|reserved_special_token_245|>': (10, 5),'<|reserved_special_token_246|>': (10, 6),'<|reserved_special_token_247|>': (10, 7),'<|reserved_special_token_248|>': (10, 8),'<|reserved_special_token_249|>': (10, 9),'<|reserved_special_token_250|>': (10, 10)
+            }
     else:
         raise ValueError(f"The tokenizer type {tokenizer_type} is not supported in control tokens.")
     return re_tokens.get(token,(-1,-1))
 
 
-def tag_token(place, tokenizer_type:str = "llama-2"):
+def tag_token(place, tokenizer_type:str = "llama-2",return_type:int=0):
     """引入头标记和尾标记 """
     assert place in {0,1}
     if tokenizer_type == "llama-2":
         special_tokens = [('유', 31533),('요', 31527)]
-    elif tokenizer_type == "llava-v1.6":
+    elif tokenizer_type == "mistral":
         special_tokens = [('ಮ', 31941),('አ', 31942)]
     elif tokenizer_type=="llama-3":
         special_tokens = [('<|reserved_special_token_199|>', 128204),('<|reserved_special_token_198|>', 128203)]
     else:
         raise ValueError(f"The tokenizer type {tokenizer_type} is not supported in control tokens.")
-    return special_tokens[place][0]
+    return special_tokens[place][return_type]
 
 
 
-def token_2_action(tokens:str, tokenizer_type:str = 'llama-2',bases:list = [10,3,3,3,2,2,2,2,2,11,11]) -> tuple:
+def token_2_action(tokens:Union[str,torch.Tensor],tag_token_list, tokenizer_type:str = 'llama-2',bases:list = [10,3,3,3,2,2,2,2,2,11,11]) -> tuple:
     """将一个输入序列转换回 """
-    pattern = f'{tag_token(0,tokenizer_type)}.*{tag_token(1,tokenizer_type)}'
-    match = re.search(pattern, tokens)
     actions = [0]*len(bases) #初始化
     camera_null = [bases[-1]//2,bases[-2]//2]
-    if not match:
-        return actions
+    actions[-2:] = camera_null
+    if isinstance(tokens,str):
+        #输入文字
+        pattern = f'{tag_token(0,tokenizer_type)}.*{tag_token(1,tokenizer_type)}'
+        match = re.search(pattern, tokens)
+        
+        if not match:
+            return custom_seq_2_decimal(actions)
+        control_tokens = match.group()[1:-1]
+        for token in control_tokens:
+            place,num = remap_control_token(token,use_num=False,tokenizer_type=tokenizer_type)
+            if place!=-1:
+                actions[place]=num
+    elif isinstance(tokens,torch.Tensor):
 
-    control_tokens = match.group()[1:-1]
-    for token in control_tokens:
-        place,num = remap_control_token(token,tokenizer_type)
-        if place!=-1:
-            actions[place]=num
+        indices_n1 = torch.where(tokens == tag_token_list[0])
+        
+        first_index_n1 = indices_n1[1][0].item() if indices_n1[0].numel() > 0 else None
+
+        indices_n2 = torch.where(tokens == tag_token_list[1])
+        first_index_n2 = indices_n2[1][0].item() if indices_n2[0].numel() > 0 else None
+
+        if first_index_n1 is not None and first_index_n2 is not None and first_index_n1 < first_index_n2:
+            control_tokens = tokens[0][first_index_n1 + 1:first_index_n2]
+        else:
+            return custom_seq_2_decimal(actions)
+        for token in control_tokens:
+            place,num = remap_control_token(token.item(),use_num=True,tokenizer_type=tokenizer_type)
+            if place!=-1:
+                actions[place]=num
+        
+    else:
+        raise ValueError("wrong type!")
     # 如果移动了视野，camera button变为1
-    if actions[-2:] != [bases[-1]//2,bases[-2]//2]:
+    if actions[-2:] != camera_null:
         actions[-3] = 1
     outputs = custom_seq_2_decimal(actions)
     return outputs
         
-
-
 def action_2_token(inputs:tuple, tokenizer_type:str = 'llama-2'):
     '''
     Params: 
@@ -301,9 +333,10 @@ class ActionMap:
         self.bases = bases
         self.action_transformer = ActionTransformer()
         self.action_mapper = CameraHierarchicalMapping(n_camera_bins=11)
+        self.basic_tag_token = [tag_token(0,self.tokenizer_type,return_type=1),tag_token(1,self.tokenizer_type,return_type=1)]
     
-    def map(self,token):
-        action = token_2_action(token,tokenizer_type=self.tokenizer_type,bases=self.bases)
+    def map(self,tokens):
+        action = token_2_action(tokens,tag_token_list=self.basic_tag_token,tokenizer_type=self.tokenizer_type,bases=self.bases)
         action_dict = {
             "buttons":np.array([action[0]]),
             "camera":np.array([action[1]]),
@@ -314,5 +347,9 @@ class ActionMap:
         return action_dict
     
 if __name__ == "__main__":
-    action_map = ActionMap("llama-3")
-    print(action_map.map("<|reserved_special_token_199|><|reserved_special_token_234|><|reserved_special_token_245|><|reserved_special_token_198|>"))
+    #outp = token_2_action(tokens=torch.tensor([128204,128235,128247,128203]),tag_token=[128204,128203],tokenizer_type="llama-3")
+    #print(outp)
+    #exit()
+    print(get_special_token("/nfs-shared/models/llava-v1.6-mistral-7b-hf"))
+    #action_map = ActionMap("llama-3")
+    #print(action_map.map(tokens=torch.tensor([128204,128237,128247,128203])))

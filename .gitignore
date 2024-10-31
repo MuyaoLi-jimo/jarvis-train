@@ -14,3 +14,5 @@ tmp
 checkpoints
 
 *.pyc
+*.mp4
+*.jpg
