@@ -1,5 +1,5 @@
 import time
-from ultron.model.inference import action_mapping, input_mapping, load_model
+from ultron.model.inference import action_mapping, load_model, processor_wrapper
 from rich import print
 from openai import OpenAI
 
@@ -8,7 +8,7 @@ class Agent:
     def __init__(self,checkpoint_path,device= "cuda:0",temperature=0.5):
         self.model_path = checkpoint_path
         self.processor,self.model,self.LLM_backbone,self.VLM_backbone = load_model.load_visual_model(device=device,checkpoint_path=checkpoint_path)
-        self.processor_wrapper = input_mapping.ProcessorWrapper(self.processor,model_name=self.VLM_backbone)
+        self.processor_wrapper = processor_wrapper.ProcessorWrapper(self.processor,model_name=self.VLM_backbone)
         self.action_map = action_mapping.ActionMap(tokenizer_type=self.LLM_backbone)
         self.device = device
         self.temperature = temperature
@@ -101,7 +101,7 @@ class VLLM_AGENT:
     def __init__(self,checkpoint_path,openai_api_base,openai_api_key="EMPTY",device= "cuda:0",temperature=0.5):
         self.LLM_backbone,self.VLM_backbone = load_model.load_visual_model(device=device,checkpoint_path=checkpoint_path,quick_load=True)
         self.action_map = action_mapping.ActionMap(tokenizer_type=self.LLM_backbone)
-        self.processor_wrapper = input_mapping.ProcessorWrapper(None,model_name=self.VLM_backbone)
+        self.processor_wrapper = processor_wrapper.ProcessorWrapper(None,model_name=self.VLM_backbone)
         self.client = OpenAI(
             api_key=openai_api_key,
             base_url=openai_api_base,
@@ -134,14 +134,14 @@ class VLLM_AGENT:
 
 if __name__ == "__main__":
     from PIL import Image
-    image_path = r"/home/mc_lmy/datas/10-08_craft-10_dataset/image/image/f27653f1-c17e-43db-9ba2-0b09f7d88c6d355.jpg"
+    image_path = r"/home/mc_lmy/datas/jarvis-dataset-003/image/602a3447-ecce-47f1-8964-31b39ae27399888.jpg"
     image = Image.open(image_path)
-    openai_api_base="http://localhost:9004/v1"
-    checkpoint_path= "/home/mc_lmy/model/JARVIS/checkpoints/mc-llava_v1.6_mistral_7b-lora-embodied_mini_craft_10-10-08-llava-v1.6-A100-c4-e3-b16-a4/checkpoint-400"
+    openai_api_base="http://localhost:9003/v1"
+    checkpoint_path= "/scratch/models/molmo-7b-d-0924"
     ##
-    #agent = VLLM_AGENT(checkpoint_path=checkpoint_path,openai_api_base=openai_api_base)
+    agent = VLLM_AGENT(checkpoint_path=checkpoint_path,openai_api_base=openai_api_base)
     #print(agent.forward(observations=[image],instructions=["crafting a crafting table"]))
     #exit()
     
-    agent = Agent(checkpoint_path=checkpoint_path,device="cuda:4")
-    print(agent.forward(observations=[image],instructions=["crafting a crafting table"],verbos=True))
+    #agent = Agent(checkpoint_path=checkpoint_path,device="cuda:4")
+    print(agent.forward(observations=[image],instructions=["points at a crafting table"],verbos=True))

@@ -5,6 +5,7 @@ from PIL import Image
 import pathlib
 import json
 import numpy as np
+import torch
 from torchvision import transforms
 
 TRL_USE_RICH = os.environ.get("TRL_USE_RICH", False)
@@ -17,14 +18,15 @@ if TRL_USE_RICH:
     from rich.console import Console
     from rich.logging import RichHandler
 
-import torch
+
 from accelerate import Accelerator
 from datasets import load_dataset, Dataset
 
 from tqdm.rich import tqdm
-from transformers import AutoTokenizer, AutoProcessor
+from transformers import AutoTokenizer, AutoProcessor,AutoModelForCausalLM,GenerationConfig
 from transformers import FuyuProcessor, LlavaProcessor, Blip2Processor, LlavaNextProcessor
 from transformers import LlavaForConditionalGeneration, FuyuForCausalLM, Blip2ForConditionalGeneration, LlavaNextForConditionalGeneration
+
 
 from trl import (
     ModelConfig,
@@ -36,7 +38,13 @@ from trl import (
     get_kbit_device_map,
 )
 from rich import print
-from ultron.model.train.utils import prepare_conversation_text_with_images, print_trainable_parameters
+from ultron.model.train.utils import (
+    prepare_conversation_text_with_images,
+    prepare_conversation_for_molmo,
+    print_trainable_parameters,
+    pad_sequence,
+    transform_image,
+)
 
 tqdm.pandas()
 
@@ -48,16 +56,27 @@ if TRL_USE_RICH:
 ################
 
 class MultimodalDataCollator:
-    def __init__(self, processor, image_folder = '/nfs-shared/data/JARVIS/tmp/images', with_image = True, resize_image = True, max_seq_length = 1024):
+    def __init__(self, processor,model_name_or_path, image_folder = '/nfs-shared/data/JARVIS/tmp/images', with_image = True, resize_image = True, max_seq_length = 1024):
         self.processor = processor
+        self.model_name_or_path = model_name_or_path
         self.image_folder = image_folder
         self.with_image = with_image
         self.resize_image = resize_image
         self.random_image_width = 224
         self.random_image_height = 224
-        self.default_image_size = (672,336) # with this image size, the llava-next will split it into 3 patches, not 5 pathces in 640*360åœ
+        self.default_image_size = (672,336) # with this image size, the llava-next will split it into 3 patches, not 5 pathces in 640*360
         self.max_seq_length = max_seq_length
         self.no_image_policy = 'random' # 'random' or 'ignore'
+        self.user_template = None
+        self.assistant_template = None
+        self.tokenize_redundant = 0
+        if "llava" in self.model_name_or_path:
+            self.user_template = "[INST]"
+            self.assistant_template = "[/INST]"
+            self.tokenize_redundant = 1
+        elif "molmo" in self.model_name_or_path:
+            self.user_template = " User:"
+            self.assistant_template = " Assistant:"
     
     def __call__(self, examples):
         texts = []
@@ -69,8 +88,11 @@ class MultimodalDataCollator:
         for example in examples:
             if 'text' in example.keys():
                 text = example['text']
-            elif 'conversations' in example.keys():
-                text = prepare_conversation_text_with_images(example, self.processor.tokenizer)  #合并<image>，并转化为加入chat template的版本
+            elif 'conversations' in example.keys():  
+                if "llava" in self.model_name_or_path:
+                    text = prepare_conversation_text_with_images(example, self.processor.tokenizer)  #合并<image>，并转化为加入chat template的版本
+                elif "molmo" in self.model_name_or_path:
+                    text = prepare_conversation_for_molmo(example)
             else:
                 print('No text or conversations found in example')
                 text = ''
@@ -98,33 +120,72 @@ class MultimodalDataCollator:
                         images.append(image)
                     else:
                         image = Image.open(image_path)
-                        if self.resize_image:
+                        
+                        if "llava" in self.model_name_or_path and self.resize_image:
                             image = image.resize(self.default_image_size)
-                        # 创建一个 transform 对象，将 PIL.Image 转换为 Tensor
-                        transform = transforms.ToTensor()
-                        # 将图像转换为 Tensor
-                        tensor_image = transform(image)
-                        images.append(tensor_image)
+                            # 创建一个 transform 对象，将 PIL.Image 转换为 Tensor
+                        if "molmo" not in self.model_name_or_path:
+                            transform = transforms.ToTensor()
+                            # 将图像转换为 Tensor
+                            image = transform(image)
+                        image=transform_image(image)
+                        images.append(image)
 
         if self.with_image and len(images) == 0:
             images = None
-        batch = self.processor(text = texts, images = images, return_tensors="pt", padding='max_length', max_length=self.max_seq_length, truncation=True)
+            
+        #prepare the batches
+        if "molmo" in self.model_name_or_path:  #truncation=True
+            image_idx = 0
+            batch_inputs = []
+            batch = {}
+            for user_text,assistant_text,image_num in texts:
+                inputs = self.processor.process(
+                    images=images[image_idx:image_idx+image_num],
+                    text=user_text
+                )
+                tokens = self.processor.tokenizer.encode(assistant_text, add_special_tokens=False)
+                tokens_tensor = torch.tensor(tokens, dtype=torch.long)
+                eos_tensor = torch.tensor([self.processor.tokenizer.eos_token_id], dtype=torch.long)
+                inputs["input_ids"] = torch.cat([inputs["input_ids"], tokens_tensor, eos_tensor])
+                batch_inputs.append(inputs)
+                image_idx += image_num
+
+            input_ids = [b['input_ids'].clone().detach() for b in batch_inputs]
+            batch['input_ids'] = pad_sequence(input_ids, padding_value=self.processor.tokenizer.pad_token_id, max_length=self.max_seq_length, truncation=True)
+            # Stack other elements
+            for key in batch_inputs[0]:
+                if key != 'input_ids':
+                    batch[key] = torch.stack([b[key].clone().detach() for b in batch_inputs], dim=0)
+
+        else:
+            batch = self.processor(text = texts, images = images, return_tensors="pt", padding='max_length', max_length=self.max_seq_length, truncation=True)
         
+       #torch.set_printoptions(threshold=10000)
         labels = batch["input_ids"].clone()
         # TODO: add back -- 非常重要
         for label in labels:
             np_label = np.array(label)
-            instruction_beg_token_ids =  np.array(processor.tokenizer("[INST]").input_ids[1:]) #remove <s>
-            instruction_end_token_ids = np.array(processor.tokenizer("[/INST]").input_ids[1:]) #remove <s>
-            padding_len = sum(label==processor.tokenizer.pad_token_id)
-            cur_len = padding_len + 2 #tokenizer：1<s>，chat_template:1<s>
-            label[padding_len:cur_len] = -100
+            cur_len = 0
+            instruction_beg_token_ids =  np.array(self.processor.tokenizer(self.user_template).input_ids[self.tokenize_redundant:]) #remove <s>
+            instruction_end_token_ids = np.array(self.processor.tokenizer(self.assistant_template).input_ids[self.tokenize_redundant:]) #remove <s>
+            """ 
+            if self.processor.tokenizer.padding_side == "left":
+                padding_len = sum(label==self.processor.tokenizer.pad_token_id)
+                cur_len = padding_len + 2 #tokenizer：1<s>，chat_template:1<s>
+            else:
+                cur_len = 1
+            label[0:cur_len] = -100
+            """
             label_len,beg_len,end_len = len(label), len(instruction_beg_token_ids), len(instruction_end_token_ids)
             beg_matches = np.where((np_label[np.arange(label_len - beg_len + 1)[:, None] + np.arange(beg_len)] == instruction_beg_token_ids).all(axis=1))[0].tolist()
             end_matches = np.where((np_label[np.arange(label_len - end_len + 1)[:, None] + np.arange(end_len)] == instruction_end_token_ids).all(axis=1))[0].tolist()
             assert len(beg_matches)==len(end_matches)
+            label[:beg_matches[0]]=-100
             for instruction_beg_idx,instruction_end_idx in zip(beg_matches,end_matches):
                 label[instruction_beg_idx:instruction_end_idx]= -100
+            
+
         if self.processor.tokenizer.pad_token_id is not None:
             labels[labels == self.processor.tokenizer.pad_token_id] = -100
         batch["labels"] = labels
@@ -180,6 +241,12 @@ if __name__ == "__main__":
     elif 'blip2' in model_config.model_name_or_path:
         processor = Blip2Processor.from_pretrained(model_config.model_name_or_path)
         model = Blip2ForConditionalGeneration.from_pretrained(model_config.model_name_or_path, **model_kwargs)
+    elif 'molmo' in model_config.model_name_or_path:
+        processor_config = dict(
+            trust_remote_code=model_config.trust_remote_code,
+        )
+        processor = AutoProcessor.from_pretrained(model_config.model_name_or_path,**processor_config)
+        model = AutoModelForCausalLM.from_pretrained(model_config.model_name_or_path, **model_kwargs)  #bf16可以
     else:
         processor = AutoProcessor.from_pretrained(model_config.model_name_or_path)
     
@@ -196,8 +263,8 @@ if __name__ == "__main__":
     model.config.use_cache = False
 
     image_fold = pathlib.Path(sft_script_args.dataset_name).parent
-    if 'llava-next' in model_config.model_name_or_path or 'llava-v1.6' in model_config.model_name_or_path:
-        data_collator = MultimodalDataCollator(processor, image_folder=image_fold,max_seq_length = training_args.max_seq_length)
+    if 'llava-next' in model_config.model_name_or_path or 'llava-v1.6' in model_config.model_name_or_path or "molmo" in model_config.model_name_or_path:
+        data_collator = MultimodalDataCollator(processor, image_folder=image_fold,max_seq_length = training_args.max_seq_length,model_name_or_path=model_config.model_name_or_path)
     else:
         raise ValueError(f"be careful! do not write a code for it  {model_config.model_name_or_path}")
 

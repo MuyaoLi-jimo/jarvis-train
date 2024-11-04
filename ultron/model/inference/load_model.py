@@ -37,34 +37,6 @@ def load_visual_model(device,checkpoint_path = "/nfs-shared-2/limuyao/JARVIS/che
     Console().log(f"[Kernel]{checkpoint_path} 模型成功加载")
     return processor,model,LLM_backbone,VLM_backbone
 
-def load_visual_model_1(model_path="/nfs-shared/models/llama3-llava-next-8b-hf",checkpoint_path = "/nfs-shared-2/limuyao/JARVIS/checkpoints/mc-llava_next_llama3_8b-lora-embodied_mini_craft_table-10-05-A40-c4-e3-b4-a2/checkpoint-1749"):
-    from transformers import AutoTokenizer, LlavaNextForConditionalGeneration,AutoProcessor
-    import torch
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = LlavaNextForConditionalGeneration.from_pretrained(model_path, device_map=device, torch_dtype = torch.bfloat16)
-    processor = AutoProcessor.from_pretrained(model_path)
-    LLM_backbone = "llama-3"
-    VLM_backbone = "llava-next"
-    model.load_adapter(checkpoint_path)
-    model.enable_adapters()
-    return processor,model,LLM_backbone,VLM_backbone
-
-def load_visual_model_2(model_path="/nfs-shared/models/llama3-llava-next-8b-hf",checkpoint_path = "/nfs-shared-2/limuyao/JARVIS/checkpoints/mc-llava_next_llama3_8b-lora-embodied_mini_craft_table-10-05-A40-c4-e3-b4-a2/checkpoint-1749"):
-    from transformers import AutoModelForCausalLM,AutoProcessor
-    import torch
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    from transformers import LlavaNextForConditionalGeneration,LlavaNextProcessor
-    model = LlavaNextForConditionalGeneration.from_pretrained(
-        model_path,
-        device_map=device, 
-    )
-    model = PeftModel.from_pretrained(model, checkpoint_path)
-    model = model.merge_and_unload()
-    processor = AutoProcessor.from_pretrained(model_path)
-    LLM_backbone = "llama-3"
-    VLM_backbone = "llava-next"
-    return processor,model,LLM_backbone,VLM_backbone
-
 if __name__ == "__main__":
     processor,model,LLM_backbone,VLM_backbone = load_visual_model()
     
