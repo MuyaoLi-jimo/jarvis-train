@@ -120,6 +120,7 @@ class MultimodalDataCollator:
                         images.append(image)
                     else:
                         image = Image.open(image_path)
+                        image=transform_image(image)
                         
                         if "llava" in self.model_name_or_path and self.resize_image:
                             image = image.resize(self.default_image_size)
@@ -128,7 +129,7 @@ class MultimodalDataCollator:
                             transform = transforms.ToTensor()
                             # 将图像转换为 Tensor
                             image = transform(image)
-                        image=transform_image(image)
+                        
                         images.append(image)
 
         if self.with_image and len(images) == 0:

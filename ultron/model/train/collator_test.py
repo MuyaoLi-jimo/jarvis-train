@@ -4,7 +4,7 @@ import pathlib
 import numpy as np
 import torch
 from torchvision import transforms
-from ultron.model.train.utils import prepare_conversation_text_with_images, prepare_conversation_for_molmo,print_trainable_parameters,pad_sequence
+from ultron.model.train.utils import prepare_conversation_text_with_images, prepare_conversation_for_molmo,print_trainable_parameters,pad_sequence,transform_image
 
 class MultimodalDataCollator:
     def __init__(self, processor,model_name_or_path, image_folder = '/nfs-shared/data/JARVIS/tmp/images', with_image = True, resize_image = True, max_seq_length = 1024):
@@ -71,7 +71,7 @@ class MultimodalDataCollator:
                         images.append(image)
                     else:
                         image = Image.open(image_path)
-                        
+                        image=transform_image(image)
                         if "llava" in self.model_name_or_path and self.resize_image:
                             image = image.resize(self.default_image_size)
                             # 创建一个 transform 对象，将 PIL.Image 转换为 Tensor
@@ -79,6 +79,7 @@ class MultimodalDataCollator:
                             transform = transforms.ToTensor()
                             # 将图像转换为 Tensor
                             image = transform(image)
+                        
                         images.append(image)
 
         if self.with_image and len(images) == 0:
@@ -111,7 +112,7 @@ class MultimodalDataCollator:
         else:
             batch = self.processor(text = texts, images = images, return_tensors="pt", padding='max_length', max_length=self.max_seq_length, truncation=True)
         
-       #
+       #torch.set_printoptions(threshold=10000)
         labels = batch["input_ids"].clone()
         # TODO: add back -- 非常重要
         for label in labels:

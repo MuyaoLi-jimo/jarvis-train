@@ -70,36 +70,38 @@ def pad_sequence(sequences, padding_value,max_length=4096,padding_side='right',t
     return output
     
 
+from PIL import Image, ImageEnhance, ImageOps
+import random
 
-def transform_image(image:Image)->Image:
-    # 随机调整色相
+def transform_image(image):
+
+    # Randomly adjust hue
     hue_factor = random.uniform(-0.2, 0.2)
-    image = ImageEnhance.Color(image).enhance(1 + hue_factor)  # PIL没有直接调整色相的功能，这里用Color增强模拟
+    image = ImageEnhance.Color(image).enhance(1 + hue_factor)  # Simulating hue adjustment with Color enhancement
 
-    # 随机调整饱和度
+    # Randomly adjust saturation
     saturation_factor = random.uniform(0.8, 1.2)
     image = ImageEnhance.Color(image).enhance(saturation_factor)
 
-    # 随机调整亮度
+    # Randomly adjust brightness
     brightness_factor = random.uniform(0.8, 1.2)
     image = ImageEnhance.Brightness(image).enhance(brightness_factor)
 
-    # 随机调整对比度
+    # Randomly adjust contrast
     contrast_factor = random.uniform(0.8, 1.2)
     image = ImageEnhance.Contrast(image).enhance(contrast_factor)
 
-    # 随机旋转
+    # Randomly rotate
     rotate_degree = random.uniform(-2, 2)
-    image = image.rotate(rotate_degree, expand=True)  # expand=True to allow for corners after rotation
+    image = image.rotate(rotate_degree, expand=True)
 
-    # 随机缩放
+    # Randomly scale
     scale_factor = random.uniform(0.98, 1.02)
     new_size = (int(image.width * scale_factor), int(image.height * scale_factor))
-    image = image.resize(new_size, Image.ANTIALIAS)
+    image = image.resize(new_size, Image.Resampling.LANCZOS)
 
-    # 随机错切
+    # Randomly shear using an affine transformation
     shear_degree = random.uniform(-2, 2)
-    # PIL does not support shear directly, using affine transform to simulate shear
     a = 1  # x coordinate doesn't change
     b = -shear_degree / 180 * 3.1415927  # y coordinate shift
     c = 0  # x translation
@@ -108,11 +110,12 @@ def transform_image(image:Image)->Image:
     f = 0  # y translation
     image = image.transform(image.size, Image.AFFINE, (a, b, c, d, e, f))
 
-    # 随机平移
+    # Randomly translate
     max_trans = 2
     trans_x = random.randint(-max_trans, max_trans)
     trans_y = random.randint(-max_trans, max_trans)
-    image = ImageOps.offset(image, trans_x, trans_y)
+    translation_matrix = (1, 0, trans_x, 0, 1, trans_y)
+    image = image.transform(image.size, Image.AFFINE, translation_matrix)
 
     return image
 
