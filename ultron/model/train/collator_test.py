@@ -4,12 +4,33 @@ import pathlib
 import numpy as np
 import torch
 from torchvision import transforms
+from rich.console import Console
 from ultron.model.train.utils import prepare_conversation_text_with_images, prepare_conversation_for_molmo,print_trainable_parameters,pad_sequence,transform_image
 
 class MultimodalDataCollator:
     def __init__(self, processor,model_name_or_path, image_folder = '/nfs-shared/data/JARVIS/tmp/images', with_image = True, resize_image = True, max_seq_length = 1024):
         self.processor = processor
+        self.model_type = None
+        self.user_template = None
+        self.assistant_template = None
+        self.console = Console()
+        self.tokenize_redundant = 0
+        model_name_or_path = model_name_or_path.lower()
         self.model_name_or_path = model_name_or_path
+        if "molmo" in model_name_or_path:
+            self.model_type = "molmo"
+            self.user_template = " User:"
+            self.assistant_template = " Assistant:"
+        elif "mistral" in model_name_or_path:
+            self.model_type = "mistral"
+            self.user_template = "[INST]"
+            self.assistant_template = "[/INST]"
+            self.tokenize_redundant = 1
+        elif "llama-3" in model_name_or_path or "llama3" in  model_name_or_path or "llama_3" in model_name_or_path:
+            self.model_type = "llama-3"
+            self.user_template ="<|start_header_id|>user<|end_header_id|>"
+            self.assistant_template = "<|start_header_id|>assistant<|end_header_id|>"
+            self.tokenize_redundant = 1
         self.image_folder = image_folder
         self.with_image = with_image
         self.resize_image = resize_image
@@ -18,16 +39,8 @@ class MultimodalDataCollator:
         self.default_image_size = (672,336) # with this image size, the llava-next will split it into 3 patches, not 5 pathces in 640*360
         self.max_seq_length = max_seq_length
         self.no_image_policy = 'random' # 'random' or 'ignore'
-        self.user_template = None
-        self.assistant_template = None
-        self.tokenize_redundant = 0
-        if "llava" in self.model_name_or_path:
-            self.user_template = "[INST]"
-            self.assistant_template = "[/INST]"
-            self.tokenize_redundant = 1
-        elif "molmo" in self.model_name_or_path:
-            self.user_template = " User:"
-            self.assistant_template = " Assistant:"
+
+            
     
     def __call__(self, examples):
         texts = []
@@ -40,10 +53,10 @@ class MultimodalDataCollator:
             if 'text' in example.keys():
                 text = example['text']
             elif 'conversations' in example.keys():  
-                if "llava" in self.model_name_or_path:
-                    text = prepare_conversation_text_with_images(example, self.processor.tokenizer)  #合并<image>，并转化为加入chat template的版本
-                elif "molmo" in self.model_name_or_path:
+                if "molmo" in self.model_name_or_path:
                     text = prepare_conversation_for_molmo(example)
+                else:
+                    text = prepare_conversation_text_with_images(example, self.processor.tokenizer)  #合并<image>，并转化为加入chat template的版本
             else:
                 print('No text or conversations found in example')
                 text = ''
@@ -86,7 +99,7 @@ class MultimodalDataCollator:
             images = None
             
         #prepare the batches
-        if "molmo" in self.model_name_or_path:  #truncation=True
+        if self.model_type =="molmo":  #truncation=True
             image_idx = 0
             batch_inputs = []
             batch = {}
@@ -114,9 +127,13 @@ class MultimodalDataCollator:
         
        #torch.set_printoptions(threshold=10000)
         labels = batch["input_ids"].clone()
+        check_id = -1 if processor.tokenizer.padding_side=="right" else 0
+        if labels[0][check_id].item()!=self.processor.tokenizer.pad_token_id:
+            self.console.log("[red]Warning! the token length is probably out of max token length")
         # TODO: add back -- 非常重要
         for label in labels:
-            np_label = np.array(label)
+            print(label)
+            np_label = label.cpu().numpy()
             cur_len = 0
             instruction_beg_token_ids =  np.array(self.processor.tokenizer(self.user_template).input_ids[self.tokenize_redundant:]) #remove <s>
             instruction_end_token_ids = np.array(self.processor.tokenizer(self.assistant_template).input_ids[self.tokenize_redundant:]) #remove <s>
@@ -136,7 +153,7 @@ class MultimodalDataCollator:
             for instruction_beg_idx,instruction_end_idx in zip(beg_matches,end_matches):
                 label[instruction_beg_idx:instruction_end_idx]= -100
             
-
+        
         if self.processor.tokenizer.pad_token_id is not None:
             labels[labels == self.processor.tokenizer.pad_token_id] = -100
         batch["labels"] = labels
@@ -173,7 +190,7 @@ examples = [
     },
     {
         "id": "3d966b41-2299-4acd-b4b1-3fbbd7e653e4580",
-        "image": "image/3d966b41-2299-4acd-b4b1-3fbbd7e653e4580.jpg",
+        "image": ["image/3d966b41-2299-4acd-b4b1-3fbbd7e653e4580.jpg","image/3d966b41-2299-4acd-b4b1-3fbbd7e653e4580.jpg"],
         "conversations": [
             {
                 "role": "user",
@@ -193,22 +210,46 @@ examples = [
                 "content": [
                     {
                         "type": "text",
-                        "text": "\u0cae\u5be6\u5c97\ucee8\u12a0"
+                        "text": "<|reserved_special_token_178|><|reserved_special_token_214|><|reserved_special_token_248|><|reserved_special_token_179|>"
                     }
                 ]
-            }
+            },
+            {            
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Construct a crafting table."
+                    },
+                    {
+                        "type": "image",
+                        "text": "<image>"
+                    }
+                ]
+            },
+                        {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "<|reserved_special_token_178|><|reserved_special_token_214|><|reserved_special_token_248|><|reserved_special_token_179|>"
+                    }
+                ]
+            },
         ],
     },
 ]
     
 if __name__ == "__main__":
     
+
+    
     processor_config = dict(
         do_rescale=False,
         patch_size=14,
         vision_feature_select_strategy="default"
     )
-    processor = LlavaNextProcessor.from_pretrained("/home/mc_lmy/model/llava-v1.6-mistral-7b-hf",**processor_config)
+    processor = LlavaNextProcessor.from_pretrained("/scratch/mc_lmy/models/llama3-llava-next-8b-hf",**processor_config)
     """ 
     processor = AutoProcessor.from_pretrained(
         "/scratch/models/molmo-7b-d-0924",
@@ -218,6 +259,21 @@ if __name__ == "__main__":
     )
     """
     torch.set_printoptions(threshold=10000)
-    data_collator = MultimodalDataCollator(processor, image_folder="/home/mc_lmy/datas/jarvis-dataset-003",max_seq_length = 2048,model_name_or_path="/home/mc_lmy/model/llava-v1.6-mistral-7b-hf")
+    data_collator = MultimodalDataCollator(processor, image_folder="/home/mc_lmy/datas/11-10-craft-craft_table-shell_agent-hard",max_seq_length = 4096,model_name_or_path="/scratch/mc_lmy/models/llama3-llava-next-8b-hf")
     output= data_collator(examples)
-    print(output["labels"])
+    #print(output["labels"])
+
+    exit()
+    from datasets import load_dataset
+    dataset_name="/home/mc_lmy/datas/jarvis-dataset-004/11-06-craft-craft_table-shell_agent-normal-mistral"
+        
+    train_dataset_file = dataset_name + "-train.json"
+    eval_dataset_file = dataset_name + "-valid.json"
+
+    raw_datasets = load_dataset("json", data_files={"train": train_dataset_file, "validation": eval_dataset_file}, num_proc=8)
+
+    train_dataset = raw_datasets['train']
+    eval_dataset = raw_datasets['validation']
+    train_dataset = train_dataset.shuffle(27)
+    print(train_dataset[0])
+    exit()

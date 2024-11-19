@@ -1,11 +1,11 @@
 import re
 import numpy as np
+from rich import console
 from collections import OrderedDict
 from typing import Union
 import torch
 from jarvis.arm.utils.vpt_lib.actions import  ActionTransformer,Buttons
 from jarvis.arm.utils.vpt_lib.action_mapping import CameraHierarchicalMapping
-
 
 def get_special_token(model_id:str = '/nfs-shared/models/llama-3', bases:list = [10,3,3,3,2,2,2,2,2,11,11]) -> list:  #假设永远不会出现8641这个数
     '''
@@ -16,7 +16,7 @@ def get_special_token(model_id:str = '/nfs-shared/models/llama-3', bases:list = 
     '''
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    token_num = sum(bases)+10
+    token_num = sum(bases)+30
     special_tokens = sorted(list(tokenizer.vocab.items()), key=lambda x: x[-1])[-token_num:]
     return special_tokens
 
@@ -46,22 +46,35 @@ mistral (llava-v1.6-mistral-7b-hf)
     ('仍', 31971),('實', 31972),
     ('楽', 31973),('範', 31974),
     ('వ', 31976),('嵌', 31977),
-    ('摩', 31978),('袁', 31979),('ষ', 31980),('乎', 31981),('규', 31982),('岗', 31983),('糊', 31984),('క', 31985),('雲', 31986),('심', 31987),('ई', 31988),
-    ('འ', 31989),('ἡ', 31990),('丝', 31991),('Ħ', 31992),('ٍ', 31993),('ٓ', 31994),('အ', 31995),('執', 31996),('벨', 31997),('ゼ', 31998),('梦', 31999),
+    ('摩', 31978),('袁', 31979),('ষ', 31980),('乎', 31981),('규', 31982),('岗', 31983),('糊', 31984),('క', 31985),('雲', 31986),('심', 31987),('ई', 31988),('庭', 31926), ('苗', 31927),('闲', 31929), ('독', 31930), ('ɹ', 31931), ('ҽ', 31932), ('ថ', 31933), ('宏', 31934), ('尊', 31935), ('總', 31936),
+    ('འ', 31989),('ἡ', 31990),('丝', 31991),('Ħ', 31992),('ٍ', 31993),('ٓ', 31994),('အ', 31995),('執', 31996),('벨', 31997),('ゼ', 31998),('梦', 31999), ('裝', 31937), ('ම', 31938), ('▸', 31939), ('測', 31940), ('勇', 31920), ('徐', 31921), ('轩', 31943), ('兄', 31944), ('剑', 31945), ('ન', 31946)
 ]
 llama-3,llava-next(llama3-llava-next-8b-hf)
-[
-    ('<|reserved_special_token_200|>', 128205),('<|reserved_special_token_201|>', 128206),('<|reserved_special_token_202|>', 128207),('<|reserved_special_token_203|>', 128208),('<|reserved_special_token_204|>', 128209),('<|reserved_special_token_205|>', 128210),('<|reserved_special_token_206|>', 128211),('<|reserved_special_token_207|>', 128212),('<|reserved_special_token_208|>', 128213),('<|reserved_special_token_209|>', 128214),
-    ('<|reserved_special_token_210|>', 128215),('<|reserved_special_token_211|>', 128216),('<|reserved_special_token_212|>', 128217),
-    ('<|reserved_special_token_213|>', 128218),('<|reserved_special_token_214|>', 128219),('<|reserved_special_token_215|>', 128220),
-    ('<|reserved_special_token_216|>', 128221),('<|reserved_special_token_217|>', 128222),('<|reserved_special_token_218|>', 128223),
-    ('<|reserved_special_token_219|>', 128224),('<|reserved_special_token_220|>', 128225),
-    ('<|reserved_special_token_221|>', 128226),('<|reserved_special_token_222|>', 128227),
-    ('<|reserved_special_token_223|>', 128228),('<|reserved_special_token_224|>', 128229),
-    ('<|reserved_special_token_225|>', 128230),('<|reserved_special_token_226|>', 128231),
-    ('<|reserved_special_token_227|>', 128232),('<|reserved_special_token_228|>', 128233),
-    ('<|reserved_special_token_229|>', 128234),('<|reserved_special_token_230|>', 128235),('<|reserved_special_token_231|>', 128236),('<|reserved_special_token_232|>', 128237),('<|reserved_special_token_233|>', 128238),('<|reserved_special_token_234|>', 128239),('<|reserved_special_token_235|>', 128240),('<|reserved_special_token_236|>', 128241),('<|reserved_special_token_237|>', 128242),('<|reserved_special_token_238|>', 128243),('<|reserved_special_token_239|>', 128244),
-    ('<|reserved_special_token_240|>', 128245),('<|reserved_special_token_241|>', 128246),('<|reserved_special_token_242|>', 128247),('<|reserved_special_token_243|>', 128248), ('<|reserved_special_token_244|>', 128249),('<|reserved_special_token_245|>', 128250),('<|reserved_special_token_246|>', 128251),('<|reserved_special_token_247|>', 128252),('<|reserved_special_token_248|>', 128253),('<|reserved_special_token_249|>', 128254),('<|reserved_special_token_250|>', 128255),
+[ 71 
+    ('ĠìĦľìļ¸íĬ¹ë³Ħìĭľ', 127929), ('ÎķÎĻÎ£', 127930), ('à¸¸à¸¡à¸Ĭà¸Ļ', 127931), ('ĠÐ¼ÑĸÐ»ÑĮ', 127932), ('æħĮ', 127933), ('ÏĥÎºÎµÏĦÎ±Î¹', 127934), ('ĠãĢľ', 127935), ('Ġkaliteli', 127936), ('ĠÑģÐ¼ÐµÑĢÑĤÑĮ', 127937), ('è¼Ķ', 127938), 
+    ('ĠÐ±Ð¸ÑĤ', 127939), ('ĠÎ£ÏĦÎ¿', 127940), ('à¸ĩà¹Ģà¸¨à¸ª', 127941), 
+    ('åİŁæľ¬', 127942), ('ĠknÃŃ', 127943), ('äºĴèģĶç½ĳ', 127944), 
+    ('ĠÑĩÐµÐ»Ð¾Ð²ÐµÑĩÐµÑģ', 127945), ('çŃĴ', 127946), ('à¸Īà¸³à¸«à¸Ļ', 127947), 
+    ('åĩºåİ»', 127948), ('ãĤ¢ãĥĭãĥ¡', 127949), 
+    ('å±ķç¤º', 127950), ('rych', 127951), 
+    ('à¤ħà¤¬', 127952), ('oÅĪ', 127953), 
+    ('jÃŃcÃŃm', 127954), ('Ø§ØŃØ«', 127955), 
+    ('ĠÙĪØ§ÙĤØ¹ÛĮ', 127956), ('ĠÐ¤ÐµÐ´ÐµÑĢÐ°Ð»ÑĮ', 127957), 
+    ('ÑģÐ°Ð¼', 127958), ('Ġìĺ¥', 127959), ('åľ°çĲĥ', 127960), ('Ġsuyu', 127961), ('seniz', 127962), ('à¥īà¤«', 127963), ('Ġê°Ļëĭ¤', 127964), ('ĠÐ¿ÑĢÐ¸Ð·Ð½Ð°ÑĩÐµÐ½Ð½Ñı', 127965), ('ĠSÄ±n', 127966), ('ĠØ§ÙħÙĨÛĮØª', 127967), ('ĠlÃ¡tky', 127968), ('ĠÐĳÐ¸', 127969), ('ĠsÃ¼reci', 127970), ('Â·Â·Â·Â·', 127971), ('Ġê²½ì°°', 127972), ('ĠÐºÐ°Ð»ÑĮ', 127973), ('ĠÐ½Ð¸ÐºÑĤÐ¾', 127974), ('ÙĳÙħ', 127975), ('ĠØ¯ÙĬÚ¯Ø±',127976), ('ĠalÄ±nmasÄ±', 127977), ('Ð»ÐµÐ½Ð½Ñĸ', 127978), 
+    ('à¸´à¸§à¹Ģà¸ķà¸Ńà¸£', 127979), ('à¸Ľà¸ģà¸Ħà¸£à¸Ńà¸ĩ', 127980), ('ĠÐ·Ð°ÐºÐ¾Ð½Ð¾Ð´Ð°Ð²ÑģÑĤÐ²Ð°', 127981), ('ãĢĢãĤ¤', 127982), ('Ġëħ¸íķĺìļ°', 127983), ('ĠDÃ¼ÅŁ', 127984), ('ĠÐ³ÑĥÑģÑĤ', 127985), ('ĠÐĴÐ°ÑĪ', 127986), ('ĠØ§ÙħØªÛĮ', 127987), ('Ġparamet', 127988), ('ĠÎłÎ±Î½ÎµÏĢ', 127989), ('à¹Įà¸ģà¸£', 127990), ('Î¶Î±', 127991), ('ĠëįĶìļ±', 127992), ('ÙĪÙĦØ§Øª', 127993), ('Ð²Ð°ÑĤÐ¸ÑģÑı', 127994), ('ĠkÃ¶k', 127995), ('ÙĨØ¨', 127996), ('ĠÐ²ÑĭÑģÐ¾ÐºÐ¾Ð¹', 127997), ('ãĥ¼ãĥ¼', 127998), ('éĶ¦', 127999)
+]
+[ 128255-128187  68 52  61
+     ('<|reserved_special_token_180|>', 128185), ('<|reserved_special_token_181|>', 128186), ('<|reserved_special_token_182|>', 128187), ('<|reserved_special_token_183|>', 128188), ('<|reserved_special_token_184|>', 128189), ('<|reserved_special_token_185|>', 128190), ('<|reserved_special_token_186|>', 128191), ('<|reserved_special_token_187|>', 128192), ('<|reserved_special_token_188|>', 128193), ('<|reserved_special_token_189|>', 128194), 
+     ('<|reserved_special_token_190|>', 128195), ('<|reserved_special_token_191|>', 128196), ('<|reserved_special_token_192|>', 128197), 
+     ('<|reserved_special_token_193|>', 128198), ('<|reserved_special_token_194|>', 128199), ('<|reserved_special_token_195|>', 128200), 
+     ('<|reserved_special_token_196|>', 128201), ('<|reserved_special_token_197|>', 128202), ('<|reserved_special_token_198|>', 128203), 
+     ('<|reserved_special_token_199|>', 128204), ('<|reserved_special_token_200|>', 128205),
+     ('<|reserved_special_token_201|>', 128206), ('<|reserved_special_token_202|>', 128207), 
+     ('<|reserved_special_token_203|>', 128208), ('<|reserved_special_token_204|>', 128209), 
+     ('<|reserved_special_token_205|>', 128210), ('<|reserved_special_token_206|>', 128211),
+     ('<|reserved_special_token_207|>', 128212), ('<|reserved_special_token_208|>', 128213), 
+     ('<|reserved_special_token_209|>', 128214), ('<|reserved_special_token_210|>', 128215), ('<|reserved_special_token_211|>', 128216), ('<|reserved_special_token_212|>', 128217), ('<|reserved_special_token_213|>', 128218), ('<|reserved_special_token_214|>', 128219), ('<|reserved_special_token_215|>', 128220), ('<|reserved_special_token_216|>', 128221), ('<|reserved_special_token_217|>', 128222), ('<|reserved_special_token_218|>', 128223), ('<|reserved_special_token_219|>', 128224), ('<|reserved_special_token_220|>', 128225), ('<|reserved_special_token_221|>', 128226), ('<|reserved_special_token_222|>', 128227), ('<|reserved_special_token_223|>', 128228), ('<|reserved_special_token_224|>', 128229), ('<|reserved_special_token_225|>', 128230), ('<|reserved_special_token_226|>', 128231), ('<|reserved_special_token_227|>', 128232), ('<|reserved_special_token_228|>', 128233), ('<|reserved_special_token_229|>', 128234), 
+     ('<|reserved_special_token_230|>', 128235), ('<|reserved_special_token_231|>', 128236), ('<|reserved_special_token_232|>', 128237), ('<|reserved_special_token_233|>', 128238), ('<|reserved_special_token_234|>', 128239), ('<|reserved_special_token_235|>', 128240), ('<|reserved_special_token_236|>', 128241), ('<|reserved_special_token_237|>', 128242), ('<|reserved_special_token_238|>', 128243), ('<|reserved_special_token_239|>', 128244), ('<|reserved_special_token_240|>', 128245), ('<|reserved_special_token_241|>', 128246), ('<|reserved_special_token_242|>', 128247), ('<|reserved_special_token_243|>', 128248), ('<|reserved_special_token_244|>', 128249), ('<|reserved_special_token_245|>', 128250), ('<|reserved_special_token_246|>', 128251), ('<|reserved_special_token_247|>', 128252), ('<|reserved_special_token_248|>', 128253), ('<|reserved_special_token_249|>', 128254), ('<|reserved_special_token_250|>', 128255)
 ]
 Fuyu
 [
@@ -84,7 +97,7 @@ def map_control_token(num:int, place:int, tokenizer_type:str = "llama-2",not_tex
             (('용', 31737), ('단', 31746),),
             (('면', 31747), ('남', 31754),),
             (('강', 31774), ('씨', 31781),),
-            #(('개', 31789), ('들', 31804),),
+            (('개', 31789), ('들', 31804),),
             (('차', 31817), ('학', 31822), ('만', 31826), ('터', 31856), ('식', 31895), ('과', 31906), ('타', 31925), ('종', 31930), ('내', 31940), ('중', 31941), ('방', 31945)),
             (('월', 31950), ('회', 31953), ('모', 31962), ('바', 31963), ('음', 31966), ('재', 31973), ('명', 31976), ('합', 31980), ('역', 31987), ('백', 31989), ('왕', 31996)),
         ]
@@ -98,34 +111,49 @@ def map_control_token(num:int, place:int, tokenizer_type:str = "llama-2",not_tex
             (('狂', 31969),('融', 31970),),
             (('仍', 31971),('實', 31972),),
             (('楽', 31973),('範', 31974),),
-            #(('వ', 31976),('嵌', 31977),),
-            (('摩', 31978),('袁', 31979),('ষ', 31980),('乎', 31981),('규', 31982),('岗', 31983),('糊', 31984),('క', 31985),('雲', 31986),('심', 31987),('ई', 31988),),
-            (('འ', 31989),('ἡ', 31990),('丝', 31991),('Ħ', 31992),('伝', 31993),('컨', 31885),('အ', 31995),('執', 31996),('벨', 31997),('ゼ', 31998),('梦', 31999),),
+            (('వ', 31976),('嵌', 31977),),
+            (('摩', 31978),('袁', 31979),('ষ', 31980),('乎', 31981),('규', 31982),('岗', 31983),('糊', 31984),('క', 31985),('雲', 31986),('심', 31987),('ई', 31988),('庭', 31926), ('苗', 31927),('闲', 31929), ('독', 31930), ('ɹ', 31931), ('ҽ', 31932), ('ថ', 31933), ('宏', 31934), ('尊', 31935), ('總', 31936),),
+            (('འ', 31989),('ἡ', 31990),('丝', 31991),('Ħ', 31992),('ٍ', 31993),('ٓ', 31994),('အ', 31995),('執', 31996),('벨', 31997),('ゼ', 31998),('梦', 31999), ('裝', 31937), ('ම', 31938), ('▸', 31939), ('測', 31940), ('勇', 31920), ('徐', 31921), ('轩', 31943), ('兄', 31944), ('剑', 31945), ('ન', 31946),),
         ]
     elif tokenizer_type == "llama-3":
         special_tokens = [
-            (('<|reserved_special_token_200|>', 128205),('<|reserved_special_token_201|>', 128206),('<|reserved_special_token_202|>', 128207),('<|reserved_special_token_203|>', 128208),('<|reserved_special_token_204|>', 128209),('<|reserved_special_token_205|>', 128210),('<|reserved_special_token_206|>', 128211),('<|reserved_special_token_207|>', 128212),('<|reserved_special_token_208|>', 128213),('<|reserved_special_token_209|>', 128214),),
-            (('<|reserved_special_token_210|>', 128215),('<|reserved_special_token_211|>', 128216),('<|reserved_special_token_212|>', 128217),),
-            (('<|reserved_special_token_213|>', 128218),('<|reserved_special_token_214|>', 128219),('<|reserved_special_token_215|>', 128220),),
-            (('<|reserved_special_token_216|>', 128221),('<|reserved_special_token_217|>', 128222),('<|reserved_special_token_218|>', 128223),),
-            (('<|reserved_special_token_219|>', 128224),('<|reserved_special_token_220|>', 128225),),
-            (('<|reserved_special_token_221|>', 128226),('<|reserved_special_token_222|>', 128227),),
-            (('<|reserved_special_token_223|>', 128228),('<|reserved_special_token_224|>', 128229),),
-            (('<|reserved_special_token_225|>', 128230),('<|reserved_special_token_226|>', 128231),),
-            #(('<|reserved_special_token_227|>', 128232),('<|reserved_special_token_228|>', 128233),),
-            (('<|reserved_special_token_229|>', 128234),('<|reserved_special_token_230|>', 128235),('<|reserved_special_token_231|>', 128236),('<|reserved_special_token_232|>', 128237),('<|reserved_special_token_233|>', 128238),('<|reserved_special_token_234|>', 128239),('<|reserved_special_token_235|>', 128240),('<|reserved_special_token_236|>', 128241),('<|reserved_special_token_237|>', 128242),('<|reserved_special_token_238|>', 128243),('<|reserved_special_token_239|>', 128244),),
-            (('<|reserved_special_token_240|>', 128245),('<|reserved_special_token_241|>', 128246),('<|reserved_special_token_242|>', 128247),('<|reserved_special_token_243|>', 128248), ('<|reserved_special_token_244|>', 128249),('<|reserved_special_token_245|>', 128250),('<|reserved_special_token_246|>', 128251),('<|reserved_special_token_247|>', 128252),('<|reserved_special_token_248|>', 128253),('<|reserved_special_token_249|>', 128254),('<|reserved_special_token_250|>', 128255),),
+            (('<|reserved_special_token_180|>', 128185), ('<|reserved_special_token_181|>', 128186), ('<|reserved_special_token_182|>', 128187), ('<|reserved_special_token_183|>', 128188), ('<|reserved_special_token_184|>', 128189), ('<|reserved_special_token_185|>', 128190), ('<|reserved_special_token_186|>', 128191), ('<|reserved_special_token_187|>', 128192), ('<|reserved_special_token_188|>', 128193), ('<|reserved_special_token_189|>', 128194), ),
+            (('<|reserved_special_token_190|>', 128195), ('<|reserved_special_token_191|>', 128196), ('<|reserved_special_token_192|>', 128197), ),
+            (('<|reserved_special_token_193|>', 128198), ('<|reserved_special_token_194|>', 128199), ('<|reserved_special_token_195|>', 128200), ),
+            (('<|reserved_special_token_196|>', 128201), ('<|reserved_special_token_197|>', 128202), ('<|reserved_special_token_198|>', 128203), ),
+            (('<|reserved_special_token_199|>', 128204), ('<|reserved_special_token_200|>', 128205),),
+            (('<|reserved_special_token_201|>', 128206), ('<|reserved_special_token_202|>', 128207), ),
+            (('<|reserved_special_token_203|>', 128208), ('<|reserved_special_token_204|>', 128209), ),
+            (('<|reserved_special_token_205|>', 128210), ('<|reserved_special_token_206|>', 128211),),
+            (('<|reserved_special_token_207|>', 128212), ('<|reserved_special_token_208|>', 128213), ),
+            (('<|reserved_special_token_209|>', 128214), ('<|reserved_special_token_210|>', 128215), ('<|reserved_special_token_211|>', 128216), ('<|reserved_special_token_212|>', 128217), ('<|reserved_special_token_213|>', 128218), ('<|reserved_special_token_214|>', 128219), ('<|reserved_special_token_215|>', 128220), ('<|reserved_special_token_216|>', 128221), ('<|reserved_special_token_217|>', 128222), ('<|reserved_special_token_218|>', 128223), ('<|reserved_special_token_219|>', 128224), ('<|reserved_special_token_220|>', 128225), ('<|reserved_special_token_221|>', 128226), ('<|reserved_special_token_222|>', 128227), ('<|reserved_special_token_223|>', 128228), ('<|reserved_special_token_224|>', 128229), ('<|reserved_special_token_225|>', 128230), ('<|reserved_special_token_226|>', 128231), ('<|reserved_special_token_227|>', 128232), ('<|reserved_special_token_228|>', 128233), ('<|reserved_special_token_229|>', 128234), ),
+            (('<|reserved_special_token_230|>', 128235), ('<|reserved_special_token_231|>', 128236), ('<|reserved_special_token_232|>', 128237), ('<|reserved_special_token_233|>', 128238), ('<|reserved_special_token_234|>', 128239), ('<|reserved_special_token_235|>', 128240), ('<|reserved_special_token_236|>', 128241), ('<|reserved_special_token_237|>', 128242), ('<|reserved_special_token_238|>', 128243), ('<|reserved_special_token_239|>', 128244), ('<|reserved_special_token_240|>', 128245), ('<|reserved_special_token_241|>', 128246), ('<|reserved_special_token_242|>', 128247), ('<|reserved_special_token_243|>', 128248), ('<|reserved_special_token_244|>', 128249), ('<|reserved_special_token_245|>', 128250), ('<|reserved_special_token_246|>', 128251), ('<|reserved_special_token_247|>', 128252), ('<|reserved_special_token_248|>', 128253), ('<|reserved_special_token_249|>', 128254), ('<|reserved_special_token_250|>', 128255)),
+        ]
+        special_tokens1 = [
+            (('ĠìĦľìļ¸íĬ¹ë³Ħìĭľ', 127929), ('ÎķÎĻÎ£', 127930), ('à¸¸à¸¡à¸Ĭà¸Ļ', 127931), ('ĠÐ¼ÑĸÐ»ÑĮ', 127932), ('æħĮ', 127933), ('ÏĥÎºÎµÏĦÎ±Î¹', 127934), ('ĠãĢľ', 127935), ('Ġkaliteli', 127936), ('ĠÑģÐ¼ÐµÑĢÑĤÑĮ', 127937), ('è¼Ķ', 127938),),
+            (('ĠÐ±Ð¸ÑĤ', 127939), ('ĠÎ£ÏĦÎ¿', 127940), ('à¸ĩà¹Ģà¸¨à¸ª', 127941), ),
+            (('åİŁæľ¬', 127942), ('ĠknÃŃ', 127943), ('äºĴèģĶç½ĳ', 127944), ),
+            (('ĠÑĩÐµÐ»Ð¾Ð²ÐµÑĩÐµÑģ', 127945), ('çŃĴ', 127946), ('à¸Īà¸³à¸«à¸Ļ', 127947), ),
+            (('åĩºåİ»', 127948), ('ãĤ¢ãĥĭãĥ¡', 127949), ),
+            (('å±ķç¤º', 127950), ('rych', 127951), ),
+            (('à¤ħà¤¬', 127952), ('oÅĪ', 127953), ),
+            (('jÃŃcÃŃm', 127954), ('Ø§ØŃØ«', 127955), ),
+            (('ĠÙĪØ§ÙĤØ¹ÛĮ', 127956), ('ĠÐ¤ÐµÐ´ÐµÑĢÐ°Ð»ÑĮ', 127957), ),
+            (('ÑģÐ°Ð¼', 127958), ('Ġìĺ¥', 127959), ('åľ°çĲĥ', 127960), ('Ġsuyu', 127961), ('seniz', 127962), ('à¥īà¤«', 127963), ('Ġê°Ļëĭ¤', 127964), ('ĠÐ¿ÑĢÐ¸Ð·Ð½Ð°ÑĩÐµÐ½Ð½Ñı', 127965), ('ĠSÄ±n', 127966), ('ĠØ§ÙħÙĨÛĮØª', 127967), ('ĠlÃ¡tky', 127968), ('ĠÐĳÐ¸', 127969), ('ĠsÃ¼reci', 127970), ('Â·Â·Â·Â·', 127971), ('Ġê²½ì°°', 127972), ('ĠÐºÐ°Ð»ÑĮ', 127973), ('ĠÐ½Ð¸ÐºÑĤÐ¾', 127974), ('ÙĳÙħ', 127975), ('ĠØ¯ÙĬÚ¯Ø±',127976), ('ĠalÄ±nmasÄ±', 127977), ('Ð»ÐµÐ½Ð½Ñĸ', 127978),),
+            (('à¸´à¸§à¹Ģà¸ķà¸Ńà¸£', 127979), ('à¸Ľà¸ģà¸Ħà¸£à¸Ńà¸ĩ', 127980), ('ĠÐ·Ð°ÐºÐ¾Ð½Ð¾Ð´Ð°Ð²ÑģÑĤÐ²Ð°', 127981), ('ãĢĢãĤ¤', 127982), ('Ġëħ¸íķĺìļ°', 127983), ('ĠDÃ¼ÅŁ', 127984), ('ĠÐ³ÑĥÑģÑĤ', 127985), ('ĠÐĴÐ°ÑĪ', 127986), ('ĠØ§ÙħØªÛĮ', 127987), ('Ġparamet', 127988), ('ĠÎłÎ±Î½ÎµÏĢ', 127989), ('à¹Įà¸ģà¸£', 127990), ('Î¶Î±', 127991), ('ĠëįĶìļ±', 127992), ('ÙĪÙĦØ§Øª', 127993), ('Ð²Ð°ÑĤÐ¸ÑģÑı', 127994), ('ĠkÃ¶k', 127995), ('ÙĨØ¨', 127996), ('ĠÐ²ÑĭÑģÐ¾ÐºÐ¾Ð¹', 127997), ('ãĥ¼ãĥ¼', 127998), ('éĶ¦', 127999))
         ]
     else:
         raise ValueError(f"The tokenizer type {tokenizer_type} is not supported in control tokens.")
+    #print(place,num,not_text)
     return special_tokens[place][num][not_text]
 
-def prepare_for_remap_control_token(tokenizer_type:str = "llama-2",bases:list = [10,3,3,3,2,2,2,2,2,11,11]):
+def prepare_for_remap_control_token(tokenizer_type:str = "llama-2",bases:list = [10,3,3,3,2,2,2,2,2,21,21],not_text=True):
     
     tokens = {}
     for i,base in enumerate(bases):
         for j in range(base):
-            token = map_control_token(j,i,tokenizer_type)
+            print(j,i,tokenizer_type)
+            token = map_control_token(j,i,tokenizer_type,not_text=not_text)
             tokens[token]=(i,j)
     return tokens
 
@@ -151,7 +179,7 @@ def remap_control_token(token:str,use_num=True, tokenizer_type:str = "llama-2")-
             }
     elif tokenizer_type=="mistral":
         if use_num:
-            re_tokens = {31947:(0, 0), 31948:(0, 1), 31949:(0, 2), 31950:(0, 3), 31951:(0, 4), 31952:(0, 5), 31953:(0, 6), 31955:(0, 7), 31956:(0, 8), 31957:(0, 9), 31958:(1, 0), 31959:(1, 1), 31960:(1, 2), 31961:(2, 0), 31962:(2, 1), 31963:(2, 2), 31964:(3, 0), 31965:(3, 1), 31966:(3, 2), 31967:(4, 0), 31896:(4, 1), 31969:(5, 0), 31970:(5, 1), 31971:(6, 0), 31972:(6, 1), 31973:(7, 0), 31974:(7, 1), 31976:(8, 0), 31977:(8, 1), 31978:(9, 0), 31979:(9, 1), 31980:(9, 2), 31981:(9, 3), 31982:(9, 4), 31983:(9, 5), 31984:(9, 6), 31985:(9, 7), 31986:(9, 8), 31987:(9, 9), 31988:(9, 10), 31989:(10, 0), 31990:(10, 1), 31991:(10, 2), 31992:(10, 3), 31993:(10, 4), 31885:(10, 5), 31995:(10, 6), 31996:(10, 7), 31997:(10, 8), 31998:(10, 9), 31999:(10, 10)}
+            re_tokens = {31947: (0, 0), 31948: (0, 1), 31949: (0, 2), 31950: (0, 3), 31951: (0, 4), 31952: (0, 5), 31953: (0, 6), 31955: (0, 7), 31956: (0, 8), 31957: (0, 9), 31958: (1, 0), 31959: (1, 1), 31960: (1, 2), 31961: (2, 0), 31962: (2, 1), 31963: (2, 2), 31964: (3, 0), 31965: (3, 1), 31966: (3, 2), 31967: (4, 0), 31896: (4, 1), 31969: (5, 0), 31970: (5, 1), 31971: (6, 0), 31972: (6, 1), 31973: (7, 0), 31974: (7, 1), 31976: (8, 0), 31977: (8, 1), 31978: (9, 0), 31979: (9, 1), 31980: (9, 2), 31981: (9, 3), 31982: (9, 4), 31983: (9, 5), 31984: (9, 6), 31985: (9, 7), 31986: (9, 8), 31987: (9, 9), 31988: (9, 10), 31926: (9, 11), 31927: (9, 12), 31929: (9, 13), 31930: (9, 14), 31931: (9, 15), 31932: (9, 16), 31933: (9, 17), 31934: (9, 18), 31935: (9, 19), 31936: (9, 20), 31989: (10, 0), 31990: (10, 1), 31991: (10, 2), 31992: (10, 3), 31993: (10, 4), 31994: (10, 5), 31995: (10, 6), 31996: (10, 7), 31997: (10, 8), 31998: (10, 9), 31999: (10, 10), 31937: (10, 11), 31938: (10, 12), 31939: (10, 13), 31940: (10, 14), 31920: (10, 15), 31921: (10, 16), 31943: (10, 17), 31944: (10, 18), 31945: (10, 19), 31946: (10, 20)}
         else:
             re_tokens = {
                 '朱': (0, 0),'ǝ': (0, 1),'Ḩ': (0, 2),'担': (0, 3),'灰': (0, 4),'讲': (0, 5),'롤': (0, 6),'😤': (0, 7),'ោ': (0, 8),'애': (0, 9),
@@ -163,30 +191,29 @@ def remap_control_token(token:str,use_num=True, tokenizer_type:str = "llama-2")-
                 '仍': (6, 0),'實': (6, 1),
                 '楽': (7, 0),'範': (7, 1),
                 'వ': (8, 0),'嵌': (8, 1),
-                '摩': (9, 0),'袁': (9, 1),'ষ': (9, 2),'乎': (9, 3),'규': (9, 4),'岗': (9, 5),'糊': (9, 6),'క': (9, 7),'雲': (9, 8),'심': (9, 9),'ई': (9, 10),
-                'འ': (10, 0),'ἡ': (10, 1),'丝': (10, 2),'Ħ': (10, 3),'伝': (10, 4),'컨': (10, 5),'အ': (10, 6),'執': (10, 7),'벨': (10, 8),'ゼ': (10, 9),'梦': (10, 10)
+                '摩': (9, 0),'袁': (9, 1),'ষ': (9, 2),'乎': (9, 3),'규': (9, 4),'岗': (9, 5),'糊': (9, 6),'క': (9, 7),'雲': (9, 8),'심': (9, 9),'ई': (9, 10),'庭': (9, 11), '苗': (9, 12), '闲': (9, 13), '독': (9, 14),'ɹ': (9, 15), 'ҽ': (9, 16), 'ថ': (9, 17), '宏': (9, 18), '尊': (9, 19),'總': (9, 20),
+                'འ': (10, 0),'ἡ': (10, 1),'丝': (10, 2),'Ħ': (10, 3),'伝': (10, 4),'컨': (10, 5),'အ': (10, 6),'執': (10, 7),'벨': (10, 8),'ゼ': (10, 9),'梦': (10, 10),'裝': (10, 11), 'ම': (10, 12), '▸': (10, 13), '測': (10, 14),'勇': (10, 15), '徐': (10, 16), '轩': (10, 17), '兄': (10, 18), '剑': (10, 19),'ન': (10, 20)
             }
     elif tokenizer_type=="llama-3":
         if use_num:
-            re_tokens={128205:(0, 0), 128206:(0, 1), 128207:(0, 2), 128208:(0, 3), 128209:(0, 4), 128210:(0, 5), 128211:(0, 6), 128212:(0, 7), 128213:(0, 8), 128214:(0, 9), 128215:(1, 0), 128216:(1, 1), 128217:(1, 2), 128218:(2, 0), 128219:(2, 1), 128220:(2, 2), 128221:(3, 0), 128222:(3, 1), 128223:(3, 2), 128224:(4, 0), 128225:(4, 1), 128226:(5, 0), 128227:(5, 1), 128228:(6, 0), 128229:(6, 1), 128230:(7, 0), 128231:(7, 1), 128232:(8, 0), 128233:(8, 1), 128234:(9, 0), 128235:(9, 1), 128236:(9, 2), 128237:(9, 3), 128238:(9, 4), 128239:(9, 5), 128240:(9, 6), 128241:(9, 7), 128242:(9, 8), 128243:(9, 9), 128244:(9, 10), 128245:(10, 0), 128246:(10, 1), 128247:(10, 2), 128248:(10, 3), 128249:(10, 4), 128250:(10, 5), 128251:(10, 6), 128252:(10, 7), 128253:(10, 8), 128254:(10, 9), 128255:(10, 10)}
+            re_tokens={128185: (0, 0), 128186: (0, 1), 128187: (0, 2), 128188: (0, 3), 128189: (0, 4), 128190: (0, 5), 128191: (0, 6), 128192: (0, 7), 128193: (0, 8), 128194: (0, 9), 128195: (1, 0), 128196: (1, 1), 128197: (1, 2), 128198: (2, 0), 128199: (2, 1), 128200: (2, 2), 128201: (3, 0), 128202: (3, 1), 128203: (3, 2), 128204: (4, 0), 128205: (4, 1), 128206: (5, 0), 128207: (5, 1), 128208: (6, 0), 128209: (6, 1), 128210: (7, 0), 128211: (7, 1), 128212: (8, 0), 128213: (8, 1), 128214: (9, 0), 128215: (9, 1), 128216: (9, 2), 128217: (9, 3), 128218: (9, 4), 128219: (9, 5), 128220: (9, 6), 128221: (9, 7), 128222: (9, 8), 128223: (9, 9), 128224: (9, 10), 128225: (9, 11), 128226: (9, 12), 128227: (9, 13), 128228: (9, 14), 128229: (9, 15), 128230: (9, 16), 128231: (9, 17), 128232: (9, 18), 128233: (9, 19), 128234: (9, 20), 128235: (10, 0), 128236: (10, 1), 128237: (10, 2), 128238: (10, 3), 128239: (10, 4), 128240: (10, 5), 128241: (10, 6), 128242: (10, 7), 128243: (10, 8), 128244: (10, 9), 128245: (10, 10), 128246: (10, 11), 128247: (10, 12), 128248: (10, 13), 128249: (10, 14), 128250: (10, 15), 128251: (10, 16), 128252: (10, 17), 128253: (10, 18), 128254: (10, 19), 128255: (10, 20)}
+            re_tokens1={127929: (0, 0), 127930: (0, 1), 127931: (0, 2), 127932: (0, 3), 127933: (0, 4), 127934: (0, 5), 127935: (0, 6), 127936: (0, 7), 127937: (0, 8), 127938: (0, 9), 
+                       127939: (1, 0), 127940: (1, 1), 127941: (1, 2),
+                       127942: (2, 0), 127943: (2, 1), 127944: (2, 2),
+                       127945: (3, 0), 127946: (3, 1), 127947: (3, 2), 
+                       127948: (4, 0), 127949: (4, 1), 
+                       127950: (5, 0), 127951: (5, 1), 
+                       127952: (6, 0), 127953: (6, 1), 
+                       127954: (7, 0), 127955: (7, 1), 
+                       127956: (8, 0), 127957: (8, 1), 
+                       127958: (9, 0), 127959: (9, 1), 127960: (9, 2), 127961: (9, 3), 127962: (9, 4), 127963: (9, 5), 127964: (9, 6), 127965: (9, 7), 127966: (9, 8), 127967: (9, 9), 127968: (9, 10), 127969: (9, 11), 127970: (9, 12), 127971: (9, 13), 127972: (9, 14), 127973: (9, 15), 127974: (9, 16), 127975: (9, 17), 127976: (9, 18), 127977: (9, 19), 127978: (9, 20), 
+                       127979: (10, 0), 127980: (10, 1), 127981: (10, 2), 127982: (10, 3), 127983: (10, 4), 127984: (10, 5), 127985: (10, 6), 127986: (10, 7), 127987: (10, 8), 127988: (10, 9), 127989: (10, 10), 127990: (10, 11), 127991: (10, 12), 127992: (10, 13), 127993: (10, 14), 127994: (10, 15), 127995: (10, 16), 127996: (10, 17), 127997: (10, 18), 127998: (10, 19), 127999: (10, 20)
+                    }
         else:
-            re_tokens = {
-                '<|reserved_special_token_200|>': (0, 0),'<|reserved_special_token_201|>': (0, 1),'<|reserved_special_token_202|>': (0, 2),'<|reserved_special_token_203|>': (0, 3),'<|reserved_special_token_204|>': (0, 4),'<|reserved_special_token_205|>': (0, 5),'<|reserved_special_token_206|>': (0, 6),'<|reserved_special_token_207|>': (0, 7),'<|reserved_special_token_208|>': (0, 8),'<|reserved_special_token_209|>': (0, 9),
-                '<|reserved_special_token_210|>': (1, 0),'<|reserved_special_token_211|>': (1, 1),'<|reserved_special_token_212|>': (1, 2),
-                '<|reserved_special_token_213|>': (2, 0),'<|reserved_special_token_214|>': (2, 1),'<|reserved_special_token_215|>': (2, 2),
-                '<|reserved_special_token_216|>': (3, 0),'<|reserved_special_token_217|>': (3, 1),'<|reserved_special_token_218|>': (3, 2),
-                '<|reserved_special_token_219|>': (4, 0),'<|reserved_special_token_220|>': (4, 1),
-                '<|reserved_special_token_221|>': (5, 0),'<|reserved_special_token_222|>': (5, 1),
-                '<|reserved_special_token_223|>': (6, 0),'<|reserved_special_token_224|>': (6, 1),
-                '<|reserved_special_token_225|>': (7, 0),'<|reserved_special_token_226|>': (7, 1),
-                '<|reserved_special_token_227|>': (8, 0),'<|reserved_special_token_228|>': (8, 1),
-                '<|reserved_special_token_229|>': (9, 0),'<|reserved_special_token_230|>': (9, 1),'<|reserved_special_token_231|>': (9, 2),'<|reserved_special_token_232|>': (9, 3),'<|reserved_special_token_233|>': (9, 4),'<|reserved_special_token_234|>': (9, 5),'<|reserved_special_token_235|>': (9, 6),'<|reserved_special_token_236|>': (9, 7),'<|reserved_special_token_237|>': (9, 8),'<|reserved_special_token_238|>': (9, 9),'<|reserved_special_token_239|>': (9, 10),
-                '<|reserved_special_token_240|>': (10, 0),'<|reserved_special_token_241|>': (10, 1),'<|reserved_special_token_242|>': (10, 2),'<|reserved_special_token_243|>': (10, 3),'<|reserved_special_token_244|>': (10, 4),'<|reserved_special_token_245|>': (10, 5),'<|reserved_special_token_246|>': (10, 6),'<|reserved_special_token_247|>': (10, 7),'<|reserved_special_token_248|>': (10, 8),'<|reserved_special_token_249|>': (10, 9),'<|reserved_special_token_250|>': (10, 10)
-            }
+            raise ValueError("can't use text as tokens")
     else:
         raise ValueError(f"The tokenizer type {tokenizer_type} is not supported in control tokens.")
     return re_tokens.get(token,(-1,-1))
-
 
 def tag_token(place, tokenizer_type:str = "llama-2",return_type:int=0):
     """引入头标记和尾标记 """
@@ -196,14 +223,13 @@ def tag_token(place, tokenizer_type:str = "llama-2",return_type:int=0):
     elif tokenizer_type == "mistral":
         special_tokens = [('ಮ', 31941),('አ', 31942)]
     elif tokenizer_type=="llama-3":
-        special_tokens = [('<|reserved_special_token_199|>', 128204),('<|reserved_special_token_198|>', 128203)]
+        special_tokens = [('<|reserved_special_token_178|>', 128183), ('<|reserved_special_token_179|>', 128184),]
+        special_tokens1 = [('poÄįet', 127927), ('ë§ĮìĽĲìŀħëĭĪëĭ¤', 127928)]
     else:
         raise ValueError(f"The tokenizer type {tokenizer_type} is not supported in control tokens.")
     return special_tokens[place][return_type]
 
-
-
-def token_2_action(tokens:Union[str,torch.Tensor],tag_token_list, tokenizer_type:str = 'llama-2',bases:list = [10,3,3,3,2,2,2,2,2,11,11]) -> tuple:
+def token_2_action(tokens:Union[str,torch.Tensor],tag_token_list, tokenizer_type:str = 'llama-2',bases:list = [10,3,3,3,2,2,2,2,2,21,21]) -> tuple:
     """将一个输入序列转换回 """
     actions = [0]*len(bases) #初始化
     camera_null = [bases[-1]//2,bases[-2]//2]
@@ -214,7 +240,7 @@ def token_2_action(tokens:Union[str,torch.Tensor],tag_token_list, tokenizer_type
         match = re.search(pattern, tokens)
         
         if not match:
-            return custom_seq_2_decimal(actions)
+            return custom_seq_2_decimal(actions,bases=bases)
         control_tokens = match.group()[1:-1]
         for token in control_tokens:
             place,num = remap_control_token(token,use_num=False,tokenizer_type=tokenizer_type)
@@ -222,31 +248,45 @@ def token_2_action(tokens:Union[str,torch.Tensor],tag_token_list, tokenizer_type
                 actions[place]=num
     elif isinstance(tokens,torch.Tensor):
 
+        if tokens.shape == 2:
+            tokens = tokens.squeeze()
         indices_n1 = torch.where(tokens == tag_token_list[0])
-        
-        first_index_n1 = indices_n1[1][0].item() if indices_n1[0].numel() > 0 else None
+        first_index_n1 = indices_n1[0][0].item() if indices_n1[0].numel() > 0 else None
 
         indices_n2 = torch.where(tokens == tag_token_list[1])
-        first_index_n2 = indices_n2[1][0].item() if indices_n2[0].numel() > 0 else None
+        first_index_n2 = indices_n2[0][0].item() if indices_n2[0].numel() > 0 else None
 
         if first_index_n1 is not None and first_index_n2 is not None and first_index_n1 < first_index_n2:
-            control_tokens = tokens[0][first_index_n1 + 1:first_index_n2]
+            control_tokens = tokens[first_index_n1 + 1:first_index_n2]
         else:
-            return custom_seq_2_decimal(actions)
+            return custom_seq_2_decimal(actions,bases=bases)
         for token in control_tokens:
             place,num = remap_control_token(token.item(),use_num=True,tokenizer_type=tokenizer_type)
             if place!=-1:
                 actions[place]=num
-        
+    elif isinstance(tokens, list):
+    # 查找匹配 tag_token_list[0] 的所有索引
+        indices_n1 = [i for i, token in enumerate(tokens) if token == tag_token_list[0]]
+        first_index_n1 = indices_n1[0] if indices_n1 else None
+        indices_n2 = [i for i, token in enumerate(tokens) if token == tag_token_list[1]]
+        first_index_n2 = indices_n2[0] if indices_n2 else None
+        if first_index_n1 is not None and first_index_n2 is not None and first_index_n1 < first_index_n2:
+            control_tokens = tokens[first_index_n1 + 1:first_index_n2]
+        else:
+            return custom_seq_2_decimal(actions, bases=bases)
+        for token in control_tokens:
+            place, num = remap_control_token(token, use_num=True, tokenizer_type=tokenizer_type)
+            if place != -1:
+                actions[place] = num
     else:
         raise ValueError("wrong type!")
     # 如果移动了视野，camera button变为1
     if actions[-2:] != camera_null:
         actions[-3] = 1
-    outputs = custom_seq_2_decimal(actions)
+    outputs = custom_seq_2_decimal(actions,bases=bases)
     return outputs
         
-def action_2_token(inputs:tuple, tokenizer_type:str = 'llama-2'):
+def action_2_token(inputs:tuple, tokenizer_type:str = 'llama-2', bases:list = [10,3,3,3,2,2,2,2,2,21,21]):
     '''
     Params: 
     inputs:tuple:两个十进制数字
@@ -258,15 +298,15 @@ def action_2_token(inputs:tuple, tokenizer_type:str = 'llama-2'):
     '''
     # 生成控制token
     assert len(inputs)==2
-    null_action = (0,60)
-    custom_seq = decimal_2_custom_seq(inputs)
+    null_action = (0,bases[-1]*(bases[-2]//2)+bases[-1]//2)
+    custom_seq = decimal_2_custom_seq(inputs,bases=bases)
     zero_include_token_list = [map_control_token(num, i, tokenizer_type) for i, num in enumerate(custom_seq)]
-    control_token = ''.join((s for x,s in zip(custom_seq[:-2],zero_include_token_list[:-2]) if x != 0 ))
+    control_token = ''.join((s for x,s in zip(custom_seq[:-3],zero_include_token_list[:-3]) if x != 0 )) #camera键在这里没有意义
     control_token = control_token + "".join((s for s in zero_include_token_list[-2:]))  #camera必须保存
     tag_control_token = tag_token(0,tokenizer_type) + control_token + tag_token(1,tokenizer_type)
     return tag_control_token,inputs==null_action
 
-def decimal_2_custom_seq(inputs:tuple, bases:list = [10,3,3,3,2,2,2,2,11,11]) -> tuple:
+def decimal_2_custom_seq(inputs:tuple, bases:list = [10,3,3,3,2,2,2,2,2,21,21]) -> tuple:
     '''
     Params:
     * output: set, 返回一个元组, 元组中的每个元素表示一个位的值
@@ -279,7 +319,7 @@ def decimal_2_custom_seq(inputs:tuple, bases:list = [10,3,3,3,2,2,2,2,11,11]) ->
     2. decimal_to_custom_base(15359) -> (7, 7, 7, 5, 4)
     '''
     decimals = list(inputs)
-    decimals[0] = decimals[0]//2 #camera键在这里没有意义
+    #decimals[0] = decimals[0]//2 #camera键在这里没有意义
     # 用于存储转换结果的列表
     result = [0] * len(bases)
     # 从最低位到最高位逐位计算
@@ -299,7 +339,7 @@ def decimal_2_custom_seq(inputs:tuple, bases:list = [10,3,3,3,2,2,2,2,11,11]) ->
     return tuple(result)
 
 
-def custom_seq_2_decimal(number_tuple:tuple, bases:list = [10,3,3,3,2,2,2,2,2,11,11]) -> tuple:
+def custom_seq_2_decimal(number_tuple:tuple, bases:list = [10,3,3,3,2,2,2,2,2,21,21]) -> tuple:
     '''
     假如bases为[10,3,3,3,2,2,2,2,2,11,11]
     Function: 将一个具有不同基数的数字系统(每位的基数分别为 [8, 8, 8, 6, 5])转换为十进制整数, 需要编写一个Python函数来执行逆向计算。这个转换涉及将每位的值乘以对应的基数的幂, 然后再求和。
@@ -328,28 +368,33 @@ def custom_seq_2_decimal(number_tuple:tuple, bases:list = [10,3,3,3,2,2,2,2,2,11
 
 
 class ActionMap:
-    def __init__(self,tokenizer_type="llama-2",bases=[10,3,3,3,2,2,2,2,2,11,11]):
+    def __init__(self,tokenizer_type="llama-2",bases=[10,3,3,3,2,2,2,2,2,21,21]):
         self.tokenizer_type = tokenizer_type
         self.bases = bases
-        self.action_transformer = ActionTransformer()
-        self.action_mapper = CameraHierarchicalMapping(n_camera_bins=11)
+        console.Console().log(f"warning, 修改了bases:{bases}")
+        self.action_transformer = ActionTransformer(camera_quantization_scheme="mu_law",camera_mu=20,camera_binsize=1)
+        self.action_mapper = CameraHierarchicalMapping(n_camera_bins=21)
         self.basic_tag_token = [tag_token(0,self.tokenizer_type,return_type=1),tag_token(1,self.tokenizer_type,return_type=1)]
     
     def map(self,tokens):
         action = token_2_action(tokens,tag_token_list=self.basic_tag_token,tokenizer_type=self.tokenizer_type,bases=self.bases)
         action_dict = {
             "buttons":np.array([action[0]]),
-            "camera":np.array([action[1]]),
+            "camera":np.array([action[1]]),  #返回一个工作
         }
         action_dict = OrderedDict({key: value[0] for key, value in action_dict.items()})
         #factored_action = self.action_mapper.to_factored(action_dict)
         #envir_action = self.action_transformer.policy2env(factored_action)
         return action_dict
-    
+        
 if __name__ == "__main__":
+    print(action_2_token(inputs=(1,1),tokenizer_type="mistral"))
     #outp = token_2_action(tokens=torch.tensor([128204,128235,128247,128203]),tag_token=[128204,128203],tokenizer_type="llama-3")
     #print(outp)
     #exit()
-    print(get_special_token("/nfs-shared/models/llava-v1.6-mistral-7b-hf"))
-    #action_map = ActionMap("llama-3")
-    #print(action_map.map(tokens=torch.tensor([128204,128237,128247,128203])))
+    bases=[11,11]
+    #print(bases[-1]*(bases[-2]//2)+bases[-1]//2)
+    #print(prepare_for_remap_control_token(tokenizer_type="mistral"))
+    #print(get_special_token("/nfs-shared/models/llava-v1.6-mistral-7b-hf",bases = [10, 3, 3, 3, 2, 2, 2, 2, 2, 21, 21]))
+    action_map = ActionMap("mistral")
+    print(action_map.map(tokens='ಮई梦አ'))

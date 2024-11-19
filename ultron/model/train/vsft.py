@@ -45,6 +45,7 @@ from ultron.model.train.utils import (
     pad_sequence,
     transform_image,
 )
+from dataclasses import dataclass, field
 
 tqdm.pandas()
 
@@ -58,7 +59,26 @@ if TRL_USE_RICH:
 class MultimodalDataCollator:
     def __init__(self, processor,model_name_or_path, image_folder = '/nfs-shared/data/JARVIS/tmp/images', with_image = True, resize_image = True, max_seq_length = 1024):
         self.processor = processor
+        self.model_type = None
+        self.user_template = None
+        self.assistant_template = None
+        self.tokenize_redundant = 0
+        model_name_or_path = model_name_or_path.lower()
         self.model_name_or_path = model_name_or_path
+        if "molmo" in model_name_or_path:
+            self.model_type = "molmo"
+            self.user_template = " User:"
+            self.assistant_template = " Assistant:"
+        elif "mistral" in model_name_or_path:
+            self.model_type = "mistral"
+            self.user_template = "[INST]"
+            self.assistant_template = "[/INST]"
+            self.tokenize_redundant = 1
+        elif "llama-3" in model_name_or_path or "llama3" in  model_name_or_path or "llama_3" in model_name_or_path:
+            self.model_type = "llama-3"
+            self.user_template ="<|start_header_id|>user<|end_header_id|>"
+            self.assistant_template = "<|start_header_id|>assistant<|end_header_id|>"
+            self.tokenize_redundant = 1
         self.image_folder = image_folder
         self.with_image = with_image
         self.resize_image = resize_image
@@ -67,16 +87,8 @@ class MultimodalDataCollator:
         self.default_image_size = (672,336) # with this image size, the llava-next will split it into 3 patches, not 5 pathces in 640*360
         self.max_seq_length = max_seq_length
         self.no_image_policy = 'random' # 'random' or 'ignore'
-        self.user_template = None
-        self.assistant_template = None
-        self.tokenize_redundant = 0
-        if "llava" in self.model_name_or_path:
-            self.user_template = "[INST]"
-            self.assistant_template = "[/INST]"
-            self.tokenize_redundant = 1
-        elif "molmo" in self.model_name_or_path:
-            self.user_template = " User:"
-            self.assistant_template = " Assistant:"
+
+            
     
     def __call__(self, examples):
         texts = []
@@ -89,10 +101,10 @@ class MultimodalDataCollator:
             if 'text' in example.keys():
                 text = example['text']
             elif 'conversations' in example.keys():  
-                if "llava" in self.model_name_or_path:
-                    text = prepare_conversation_text_with_images(example, self.processor.tokenizer)  #合并<image>，并转化为加入chat template的版本
-                elif "molmo" in self.model_name_or_path:
+                if "molmo" in self.model_name_or_path:
                     text = prepare_conversation_for_molmo(example)
+                else:
+                    text = prepare_conversation_text_with_images(example, self.processor.tokenizer)  #合并<image>，并转化为加入chat template的版本
             else:
                 print('No text or conversations found in example')
                 text = ''
@@ -121,7 +133,6 @@ class MultimodalDataCollator:
                     else:
                         image = Image.open(image_path)
                         image=transform_image(image)
-                        
                         if "llava" in self.model_name_or_path and self.resize_image:
                             image = image.resize(self.default_image_size)
                             # 创建一个 transform 对象，将 PIL.Image 转换为 Tensor
@@ -136,7 +147,7 @@ class MultimodalDataCollator:
             images = None
             
         #prepare the batches
-        if "molmo" in self.model_name_or_path:  #truncation=True
+        if self.model_type =="molmo":  #truncation=True
             image_idx = 0
             batch_inputs = []
             batch = {}
@@ -158,15 +169,17 @@ class MultimodalDataCollator:
             for key in batch_inputs[0]:
                 if key != 'input_ids':
                     batch[key] = torch.stack([b[key].clone().detach() for b in batch_inputs], dim=0)
-
+                    
         else:
             batch = self.processor(text = texts, images = images, return_tensors="pt", padding='max_length', max_length=self.max_seq_length, truncation=True)
-        
        #torch.set_printoptions(threshold=10000)
         labels = batch["input_ids"].clone()
+        check_id = -1 if processor.tokenizer.padding_side=="right" else 0
+        if labels[0][check_id].item()!=self.processor.tokenizer.pad_token_id:
+            self.console.log("[red]Warning! the token length is probably out of max token length!")
         # TODO: add back -- 非常重要
         for label in labels:
-            np_label = np.array(label)
+            np_label = label.cpu().numpy()
             cur_len = 0
             instruction_beg_token_ids =  np.array(self.processor.tokenizer(self.user_template).input_ids[self.tokenize_redundant:]) #remove <s>
             instruction_end_token_ids = np.array(self.processor.tokenizer(self.assistant_template).input_ids[self.tokenize_redundant:]) #remove <s>
@@ -192,11 +205,18 @@ class MultimodalDataCollator:
         batch["labels"] = labels
         return batch
 
+@dataclass
+class MoreConfig:
+    private_lora_structure:bool = field(
+        default=False,
+        metadata={"help": "Whether to use adapter or not."},
+    )
+    
 
 if __name__ == "__main__":
     
-    parser = TrlParser((SFTScriptArguments, SFTConfig, ModelConfig))
-    sft_script_args, training_args, model_config = parser.parse_args_and_config()
+    parser = TrlParser((SFTScriptArguments, SFTConfig, ModelConfig,MoreConfig))
+    sft_script_args, training_args, model_config,more_config = parser.parse_args_and_config()
 
     training_args.gradient_checkpointing_kwargs = dict(use_reentrant=False)
     # Force use our print callback
@@ -209,7 +229,7 @@ if __name__ == "__main__":
     ################
     ### discard: if no chat_template is defined in tokenizer_config.json, use the default one
     DEFAULT_CHAT_TEMPLATE = """{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = message['role'] + ':\n\n'+ message['content'] + '\n' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}"""
-    VICUNA_CHAT_TEMPLATE = """{% if messages[0]['role'] == 'system' %}{% set system_message = messages[0]['content'] | trim + '\n\n' %}{% set messages = messages[1:] %}{% else %}{% set system_message = '' %}{% endif %}{{ bos_token + system_message }}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ 'USER: ' + message['content'] | trim + '\n' }}{% elif message['role'] == 'assistant' %}{{ 'ASSISTANT: ' + message['content'] | trim + eos_token + '\n' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ 'ASSISTANT:' }}{% endif %}"""
+    VICUNA_CHAT_TEMPLATE = """"{% for message in messages %}{% if message['role'] != 'system' %}{{ message['role'].upper() + ': '}}{% endif %}{# Render all images first #}{% for content in message['content'] | selectattr('type', 'equalto', 'image') %}{{ '<image>\n' }}{% endfor %}{# Render all text next #}{% if message['role'] != 'assistant' %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{{ content['text'] + ' '}}{% endfor %}{% else %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{% generation %}{{ content['text'] + ' '}}{% endgeneration %}{% endfor %}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ 'ASSISTANT:' }}{% endif %}"}"""
     torch_dtype = (
         model_config.torch_dtype
         if model_config.torch_dtype in ["auto", None]
@@ -225,7 +245,7 @@ if __name__ == "__main__":
         quantization_config=quantization_config,
     )
 
-    if 'llava-next' in model_config.model_name_or_path or 'llava-v1.6' in model_config.model_name_or_path:
+    if 'llava-next' in model_config.model_name_or_path or 'llava-v1.6' in model_config.model_name_or_path or 'llava_next' in model_config.model_name_or_path:
         processor_config = dict(
             do_rescale=False,
             patch_size=14,
@@ -264,10 +284,14 @@ if __name__ == "__main__":
     model.config.use_cache = False
 
     image_fold = pathlib.Path(sft_script_args.dataset_name).parent
-    if 'llava-next' in model_config.model_name_or_path or 'llava-v1.6' in model_config.model_name_or_path or "molmo" in model_config.model_name_or_path:
+    image_fold = image_fold.parent if image_fold.name=="output" else image_fold
+    if 'llava-next' in model_config.model_name_or_path or 'llava_next' in model_config.model_name_or_path or 'llava-v1.6' in model_config.model_name_or_path or "molmo" in model_config.model_name_or_path:
         data_collator = MultimodalDataCollator(processor, image_folder=image_fold,max_seq_length = training_args.max_seq_length,model_name_or_path=model_config.model_name_or_path)
     else:
         raise ValueError(f"be careful! do not write a code for it  {model_config.model_name_or_path}")
+
+    if more_config.private_lora_structure:
+        model_config.lora_target_modules = ["embed_tokens","out_proj","k_proj","q_proj","v_proj","o_proj","gate_proj","up_proj","down_proj","lm_head","fc1","fc2","linear_1","linear_2"]
 
     ################
     # Dataset
@@ -275,10 +299,12 @@ if __name__ == "__main__":
     
     train_dataset_file = sft_script_args.dataset_name + "-train.json"
     eval_dataset_file = sft_script_args.dataset_name + "-valid.json"
+    
 
     raw_datasets = load_dataset("json", data_files={"train": train_dataset_file, "validation": eval_dataset_file}, num_proc=8)
 
     train_dataset = raw_datasets['train']
+    train_dataset = train_dataset.shuffle(27)
     eval_dataset = raw_datasets['validation']
     
     ################
@@ -313,7 +339,8 @@ if __name__ == "__main__":
             dataset_kwargs={"skip_prepare_dataset": True}
         )
         
-    print_trainable_parameters(trainer.model)
+    print_trainable_parameters(trainer.model,f"model_structure.json")
+    
 
     # trainer.train(resume_from_checkpoint = training_args.resume_from_checkpoint)
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
@@ -322,6 +349,8 @@ if __name__ == "__main__":
         trainer.train()
 
     with save_context:
+        
+        #trainer.model.save_pretrained(training_args.output_dir/"final_model",save_embedding_layers=True)
         trainer.save_model(training_args.output_dir)
         # trainer.push_to_hub()
         # if Accelerator().is_main_process:

@@ -12,7 +12,7 @@ def load_visual_model(device,checkpoint_path = "/nfs-shared-2/limuyao/JARVIS/che
         LLM_backbone = "llama-2"
     else:
         LLM_backbone = "llama-3"
-    if 'llava-next' in checkpoint_path or 'llava-v1.6' in checkpoint_path or 'llava_v1.6'  in checkpoint_path:
+    if 'llava-next' in checkpoint_path or 'llava_next' in checkpoint_path or 'llava-v1.6' in checkpoint_path or 'llava_v1.6'  in checkpoint_path:
         VLM_backbone = "llava-next"
     
     if quick_load:
@@ -22,7 +22,7 @@ def load_visual_model(device,checkpoint_path = "/nfs-shared-2/limuyao/JARVIS/che
         model_name_or_path = config.base_model_name_or_path
     else:
         model_name_or_path = checkpoint_path
-    if 'llava-next' in model_name_or_path or 'llava-v1.6' in model_name_or_path or 'llava_v1.6' in model_name_or_path:
+    if VLM_backbone == "llava-next":
         from transformers import LlavaNextForConditionalGeneration,LlavaNextProcessor
     # 加载基础模型
         model = LlavaNextForConditionalGeneration.from_pretrained(model_name_or_path).to(device)

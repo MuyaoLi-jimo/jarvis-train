@@ -101,7 +101,7 @@ class ProcessorWrapper:
         self.processor = processor
         self.model_name = model_name
         self.image_size_map = {
-            "llava_next":(672,336),
+            "llava-next":(672,336),
             "molmo":(2560,1440),
         }
 

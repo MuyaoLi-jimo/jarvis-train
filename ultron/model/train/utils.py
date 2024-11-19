@@ -8,7 +8,7 @@ from PIL import Image, ImageEnhance, ImageOps
 import random
 
 
-def prepare_conversation_text_with_images(example, tokenizer=None):
+def prepare_conversation_text_with_images(example, tokenizer=None,simple_messages=True):
     """Prepare the text from a sample of the dataset."""
     conversations = example["conversations"]
     # LLAVA_next: batches处理的时候，输入的是所有images，然后根据<image>来分配
@@ -18,18 +18,26 @@ def prepare_conversation_text_with_images(example, tokenizer=None):
     for conv in conversations:
         message_role = conv["role"]
         message_content = ""
-        for item in conv["content"]:
-            if item["type"] == "text":
-                message_content += item["text"]
-            elif item["type"] == "image":
-                message_content += "<image>"
-                image_count+=1
-            else:
-                print(f"Unknown item type: {item['type']}")
-        messages.append({"role": message_role, "content": message_content})
+        if simple_messages:
+            for item in conv["content"]:
+                if item["type"] == "text":
+                    message_content += item["text"]
+                elif item["type"] == "image":
+                    message_content += "<image>"
+                    image_count+=1
+                else:
+                    print(f"Unknown item type: {item['type']}")
+            messages.append({"role": message_role, "content": message_content})
+        else:
+            for item in conv["content"]:
+                if item["type"] == "image":
+                    message_content += "<image>"
+                    image_count+=1
+            messages.append(conv)
     assert image_num == image_count
     text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
     return text
+
 
 def prepare_conversation_for_molmo(example,tokenizer=None):
     conversations = example["conversations"]
@@ -119,16 +127,25 @@ def transform_image(image):
 
     return image
 
-def print_trainable_parameters(model):
+def print_trainable_parameters(model,record_path = None):
     """
     Prints the number of trainable parameters in the model.
     """
     trainable_params = 0
     all_param = 0
-    for _, param in model.named_parameters():
+    model_shapes = []
+    for name, param in model.named_parameters():
+        model_shapes.append([param.requires_grad,name,param.shape])
         all_param += param.numel()
         if param.requires_grad:
             trainable_params += param.numel()
+    import json
+    if record_path:
+        with open(record_path,mode="w",encoding="UTF-8") as f:
+            json.dump(model_shapes, f, indent=4)
+        
+        with open(record_path.replace(".json","-scratch.txt"),mode="w",encoding="UTF-8") as f:
+            print(model, file=f)
     print(
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )

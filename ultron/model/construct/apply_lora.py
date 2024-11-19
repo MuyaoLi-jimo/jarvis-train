@@ -21,7 +21,7 @@ def apply_lora(base_model_path, enable_processor, target_model_path, lora_path):
     # base = AutoModelForCausalLM.from_pretrained(
     #     base_model_path, torch_dtype=torch.float16, low_cpu_mem_usage=True
     # )
-    if 'llava-next' in base_model_path or 'llava-v1.6' in base_model_path:
+    if 'llava-next' in base_model_path or 'llava-v1.6' in base_model_path or 'llava_next' in base_model_path:
         base_model = LlavaNextForConditionalGeneration.from_pretrained(
             base_model_path, torch_dtype=torch.float16, low_cpu_mem_usage=True
         )
@@ -55,13 +55,12 @@ def apply_lora(base_model_path, enable_processor, target_model_path, lora_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-model-path", type=str, default="/home/mc_lmy/model/llava-v1.6-mistral-7b-hf")
-    parser.add_argument("--lora-path", type=str, default="/scratch/mc_lmy/models/JARVIS/checkpoints/mc-llava_v1.6_mistral_7b-lora-embodied_mini_10-30-craft-craft_table-shell_agent-normal-mistral-10-30-A100-c4-e10-b16-a1/checkpoint-576")
+    parser.add_argument("--base-model-path", type=str, default="/scratch/mc_lmy/models/llama3-llava-next-8b-hf")
+    parser.add_argument("--lora-path", type=str, default="/scratch/mc_lmy/models/JARVIS/checkpoints/mc-llava_next_llama3_8b-lora-11-10-craft-craft_table-shell_agent-hard-llama-3-11-16-1-A100-c4-e3-b16-a1/checkpoint-6400")
     parser.add_argument("--enable-processor", type=bool, default= True,)
     #注意不要把lora加进去
-    parser.add_argument("--target-model-path", type=str, default="/scratch/mc_lmy/models/mc-llava_v1.6_mistral_7b-LORA-embodied_mini_10-30-craft-craft_table-shell_agent-normal-mistral-10-30-A100-c4-e10-b16-a1-576")
+    parser.add_argument("--target-model-path", type=str, default="/scratch/mc_lmy/models/mc-llava_next_llama3_8b-lora-11-10-craft-craft_table-shell_agent-hard-llama-3-11-16-1-A100-c4-e3-b16-a1-6400")
     
-
     args = parser.parse_args()
 
     apply_lora(args.base_model_path, args.enable_processor, args.target_model_path, args.lora_path)
