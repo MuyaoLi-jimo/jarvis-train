@@ -3,8 +3,10 @@ logs/
 models/
 checkpoints/
 submodules/
+__pycache__/
 out/
 tmp/
+temp/
 trash/
 wandb/
 ultron.egg-info/

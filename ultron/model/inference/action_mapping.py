@@ -1,11 +1,11 @@
 import re
 import numpy as np
-from rich import console
 from collections import OrderedDict
 from typing import Union
 import torch
 from jarvis.arm.utils.vpt_lib.actions import  ActionTransformer,Buttons
 from jarvis.arm.utils.vpt_lib.action_mapping import CameraHierarchicalMapping
+
 
 def get_special_token(model_id:str = '/nfs-shared/models/llama-3', bases:list = [10,3,3,3,2,2,2,2,2,11,11]) -> list:  #假设永远不会出现8641这个数
     '''
@@ -367,10 +367,13 @@ def custom_seq_2_decimal(number_tuple:tuple, bases:list = [10,3,3,3,2,2,2,2,2,21
     return tuple(decimal_results)
 
 
-class ActionMap:
+class ActionTokenizer:
     def __init__(self,tokenizer_type="llama-2",bases=[10,3,3,3,2,2,2,2,2,21,21]):
+        from rich import console
         self.tokenizer_type = tokenizer_type
         self.bases = bases
+        self.NULL_ACTION = [0,0]
+        self.NULL_ACTION[-1] = (bases[-2]//2)*bases[-2]+(bases[-1]//2)
         console.Console().log(f"warning, 修改了bases:{bases}")
         self.action_transformer = ActionTransformer(camera_quantization_scheme="mu_law",camera_mu=20,camera_binsize=1)
         self.action_mapper = CameraHierarchicalMapping(n_camera_bins=21)
@@ -386,15 +389,27 @@ class ActionMap:
         #factored_action = self.action_mapper.to_factored(action_dict)
         #envir_action = self.action_transformer.policy2env(factored_action)
         return action_dict
-        
+    
+    def token2action(self,tokens):
+        return self.map(tokens)
+    
+    def action2token(self,action:list):
+        return action_2_token(action,tokenizer_type=self.tokenizer_type,bases=self.bases)
+    
+    def null_token(self):
+        return self.action2token(self.NULL_ACTION)
+    
 if __name__ == "__main__":
-    print(action_2_token(inputs=(1,1),tokenizer_type="mistral"))
-    #outp = token_2_action(tokens=torch.tensor([128204,128235,128247,128203]),tag_token=[128204,128203],tokenizer_type="llama-3")
-    #print(outp)
+    #print(get_special_token("/nfs-shared/models/llama3-llava-next-8b-hf",bases = [10, 3, 3, 3, 2, 2, 2, 2, 2, 21, 500]))
+    #print(prepare_for_remap_control_token("llama-3",not_text=False))
+    #exit()
+    #print(action_2_token(inputs=(1,1),tokenizer_type="mistral"))
+    outp = token_2_action(tokens=torch.tensor([127927,127983,127999,127928]),tag_token_list=[127927,127928],tokenizer_type="llama-3")
+    print(outp)
     #exit()
     bases=[11,11]
     #print(bases[-1]*(bases[-2]//2)+bases[-1]//2)
     #print(prepare_for_remap_control_token(tokenizer_type="mistral"))
     #print(get_special_token("/nfs-shared/models/llava-v1.6-mistral-7b-hf",bases = [10, 3, 3, 3, 2, 2, 2, 2, 2, 21, 21]))
-    action_map = ActionMap("mistral")
-    print(action_map.map(tokens='ಮई梦አ'))
+    action_map = ActionTokenizer("llama-3")
+    print(action_map.map(tokens=torch.tensor([127927,127930,127983,127999,127928])))

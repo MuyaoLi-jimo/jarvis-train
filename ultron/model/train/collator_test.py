@@ -13,7 +13,6 @@ class MultimodalDataCollator:
         self.model_type = None
         self.user_template = None
         self.assistant_template = None
-        self.console = Console()
         self.tokenize_redundant = 0
         model_name_or_path = model_name_or_path.lower()
         self.model_name_or_path = model_name_or_path
@@ -39,7 +38,7 @@ class MultimodalDataCollator:
         self.default_image_size = (672,336) # with this image size, the llava-next will split it into 3 patches, not 5 pathces in 640*360
         self.max_seq_length = max_seq_length
         self.no_image_policy = 'random' # 'random' or 'ignore'
-
+        self.my_console = Console()
             
     
     def __call__(self, examples):
@@ -81,7 +80,9 @@ class MultimodalDataCollator:
                         print(f"Image file {image_path} not found, set a random image instead.")
                         random_image_dim = [self.random_image_width, self.random_image_height]
                         image = torch.rand(3, *random_image_dim)
+                        print(image.shape)
                         images.append(image)
+                        
                     else:
                         image = Image.open(image_path)
                         image=transform_image(image)
@@ -92,7 +93,7 @@ class MultimodalDataCollator:
                             transform = transforms.ToTensor()
                             # 将图像转换为 Tensor
                             image = transform(image)
-                        
+                        print(image.shape)
                         images.append(image)
 
         if self.with_image and len(images) == 0:
@@ -125,14 +126,14 @@ class MultimodalDataCollator:
         else:
             batch = self.processor(text = texts, images = images, return_tensors="pt", padding='max_length', max_length=self.max_seq_length, truncation=True)
         
-       #torch.set_printoptions(threshold=10000)
+        torch.set_printoptions(threshold=10000)
         labels = batch["input_ids"].clone()
         check_id = -1 if processor.tokenizer.padding_side=="right" else 0
         if labels[0][check_id].item()!=self.processor.tokenizer.pad_token_id:
-            self.console.log("[red]Warning! the token length is probably out of max token length")
+            self.my_console.log("[red]Warning! the token length is probably out of max token length")
         # TODO: add back -- 非常重要
         for label in labels:
-            print(label)
+            print(sum(label==128256))
             np_label = label.cpu().numpy()
             cur_len = 0
             instruction_beg_token_ids =  np.array(self.processor.tokenizer(self.user_template).input_ids[self.tokenize_redundant:]) #remove <s>
@@ -162,7 +163,7 @@ class MultimodalDataCollator:
 examples = [
     {
         "id": "ad1a0cdb-93d1-4515-9a26-8376489e569528",
-        "image": "image/ad1a0cdb-93d1-4515-9a26-8376489e569528.jpg",
+        "image": "image/33c41d59-c11e-404b-bf80-e1c7f8b00aab_390.jpg",
         "conversations": [
             {
                 "role": "user",
@@ -189,15 +190,33 @@ examples = [
         ]
     },
     {
-        "id": "3d966b41-2299-4acd-b4b1-3fbbd7e653e4580",
-        "image": ["image/3d966b41-2299-4acd-b4b1-3fbbd7e653e4580.jpg","image/3d966b41-2299-4acd-b4b1-3fbbd7e653e4580.jpg"],
+        "id": "33c41d59-c11e-404b-bf80-e1c7f8b00aab_392",
+        "task_id": "4afde622-d705-455d-91d3-07cdee6e7e02",
+        "label": [
+            "trajectory",
+            "RT2",
+            "craft item crafting table",
+            "m=1"
+        ],
+        "image": [
+            "image/33c41d59-c11e-404b-bf80-e1c7f8b00aab_390.jpg",
+            "image/33c41d59-c11e-404b-bf80-e1c7f8b00aab_392.jpg"
+        ],
         "conversations": [
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "text",
-                        "text": "Construct a crafting table."
+                        "text": "Create an crafting table. \nArrange the materials in the crafting grid according to the following pattern: \n# #\n# #\nEach # represents a plank.\n\n"
+                    },
+                    {
+                        "type": "image",
+                        "text": "<image>"
+                    },
+                    {
+                        "type": "text",
+                        "text": "<|reserved_special_token_178|><|reserved_special_token_213|><|reserved_special_token_239|><|reserved_special_token_179|>\n"
                     },
                     {
                         "type": "image",
@@ -210,33 +229,15 @@ examples = [
                 "content": [
                     {
                         "type": "text",
-                        "text": "<|reserved_special_token_178|><|reserved_special_token_214|><|reserved_special_token_248|><|reserved_special_token_179|>"
+                        "text": "<|reserved_special_token_178|><|reserved_special_token_200|><|reserved_special_token_219|><|reserved_special_token_240|><|reserved_special_token_179|>\n"
                     }
                 ]
-            },
-            {            
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Construct a crafting table."
-                    },
-                    {
-                        "type": "image",
-                        "text": "<image>"
-                    }
-                ]
-            },
-                        {
-                "role": "assistant",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "<|reserved_special_token_178|><|reserved_special_token_214|><|reserved_special_token_248|><|reserved_special_token_179|>"
-                    }
-                ]
-            },
+            }
         ],
+        "action": [
+            16,
+            220
+        ]
     },
 ]
     
@@ -259,7 +260,7 @@ if __name__ == "__main__":
     )
     """
     torch.set_printoptions(threshold=10000)
-    data_collator = MultimodalDataCollator(processor, image_folder="/home/mc_lmy/datas/11-10-craft-craft_table-shell_agent-hard",max_seq_length = 4096,model_name_or_path="/scratch/mc_lmy/models/llama3-llava-next-8b-hf")
+    data_collator = MultimodalDataCollator(processor, image_folder="/scratch/mc_lmy/datas/11-10-craft-craft_table-shell_agent-hard",max_seq_length = 4096,model_name_or_path="/scratch/mc_lmy/models/llama3-llava-next-8b-hf")
     output= data_collator(examples)
     #print(output["labels"])
 
@@ -277,3 +278,7 @@ if __name__ == "__main__":
     train_dataset = train_dataset.shuffle(27)
     print(train_dataset[0])
     exit()
+    
+    
+    
+    

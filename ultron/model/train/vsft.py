@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from torchvision import transforms
 
+
 TRL_USE_RICH = os.environ.get("TRL_USE_RICH", False)
 
 from trl.commands.cli_utils import init_zero_verbose, SFTScriptArguments, TrlParser
@@ -26,7 +27,8 @@ from tqdm.rich import tqdm
 from transformers import AutoTokenizer, AutoProcessor,AutoModelForCausalLM,GenerationConfig
 from transformers import FuyuProcessor, LlavaProcessor, Blip2Processor, LlavaNextProcessor
 from transformers import LlavaForConditionalGeneration, FuyuForCausalLM, Blip2ForConditionalGeneration, LlavaNextForConditionalGeneration
-
+from torch.optim  import AdamW
+from transformers import get_scheduler
 
 from trl import (
     ModelConfig,
@@ -37,7 +39,7 @@ from trl import (
     get_quantization_config,
     get_kbit_device_map,
 )
-from rich import print
+from rich import print,console
 from ultron.model.train.utils import (
     prepare_conversation_text_with_images,
     prepare_conversation_for_molmo,
@@ -87,6 +89,7 @@ class MultimodalDataCollator:
         self.default_image_size = (672,336) # with this image size, the llava-next will split it into 3 patches, not 5 pathces in 640*360
         self.max_seq_length = max_seq_length
         self.no_image_policy = 'random' # 'random' or 'ignore'
+        self.my_console = console.Console()
 
             
     
@@ -176,7 +179,7 @@ class MultimodalDataCollator:
         labels = batch["input_ids"].clone()
         check_id = -1 if processor.tokenizer.padding_side=="right" else 0
         if labels[0][check_id].item()!=self.processor.tokenizer.pad_token_id:
-            self.console.log("[red]Warning! the token length is probably out of max token length!")
+            self.my_console.log("[red]Warning! the token length is probably out of max token length!")
         # TODO: add back -- 非常重要
         for label in labels:
             np_label = label.cpu().numpy()
@@ -203,6 +206,7 @@ class MultimodalDataCollator:
         if self.processor.tokenizer.pad_token_id is not None:
             labels[labels == self.processor.tokenizer.pad_token_id] = -100
         batch["labels"] = labels
+        #import pdb; pdb.set_trace()
         return batch
 
 @dataclass
@@ -300,7 +304,6 @@ if __name__ == "__main__":
     train_dataset_file = sft_script_args.dataset_name + "-train.json"
     eval_dataset_file = sft_script_args.dataset_name + "-valid.json"
     
-
     raw_datasets = load_dataset("json", data_files={"train": train_dataset_file, "validation": eval_dataset_file}, num_proc=8)
 
     train_dataset = raw_datasets['train']
@@ -318,6 +321,66 @@ if __name__ == "__main__":
     )
 
     ################
+    # Optimizer
+    ################
+    # 计算每个epoch的更新步数
+    num_train_samples = len(train_dataset)  # 训练集样本总数
+    per_device_train_batch_size = training_args.per_device_train_batch_size
+    num_train_epochs = training_args.num_train_epochs
+    num_devices = training_args.n_gpu if training_args.n_gpu > 0 else 1  # 根据GPU数量调整，无GPU时默认为1
+
+    # 计算每个epoch的更新步数
+    from math import ceil
+    num_update_steps_per_epoch = ceil(num_train_samples / (per_device_train_batch_size * num_devices))
+
+    # 计算总的训练步数
+    total_training_steps = int(num_update_steps_per_epoch * training_args.num_train_epochs)
+
+    # Adjust the total training steps considering max_steps
+    if training_args.max_steps > 0:
+        total_training_steps = training_args.max_steps
+
+    # 计算预热步数
+    if training_args.warmup_steps > 0:
+        num_warmup_steps = training_args.warmup_steps
+    else:
+        num_warmup_steps = int(total_training_steps * training_args.warmup_ratio)
+
+    optimizer = AdamW([
+        {
+            'params': model.vision_tower.parameters(),
+            'lr': training_args.learning_rate * 0.1,
+            'weight_decay': training_args.weight_decay,
+            'betas': (training_args.adam_beta1, training_args.adam_beta2),
+            'eps': training_args.adam_epsilon,
+            'correct_bias': False,
+        },
+        {
+            'params': model.multi_modal_projector.parameters(),
+            'lr': training_args.learning_rate * 0.1,
+            'weight_decay': training_args.weight_decay,
+            'betas': (training_args.adam_beta1, training_args.adam_beta2),
+            'eps': training_args.adam_epsilon,
+            'correct_bias': False,
+        },
+        {
+            'params': model.language_model.parameters(),
+            'lr': training_args.learning_rate,
+            'weight_decay': training_args.weight_decay,
+            'betas': (training_args.adam_beta1, training_args.adam_beta2),
+            'eps': training_args.adam_epsilon,
+            'correct_bias': False,
+        }
+    ])  # Note: Set correct_bias=False to follow standard AdamW behavior in Transformers
+    
+    scheduler = get_scheduler(
+        name=training_args.lr_scheduler_type,
+        optimizer=optimizer,
+        num_warmup_steps=num_warmup_steps,
+        num_training_steps=total_training_steps,
+        **training_args.lr_scheduler_kwargs,
+    )
+    ################
     # Training
     ################
     from rich import print
@@ -328,19 +391,20 @@ if __name__ == "__main__":
     with init_context:  #使用trl自带的输出增强
         trainer = SFTTrainer(
             model=model,
+            optimizers = (optimizer,scheduler),
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             dataset_text_field="text",  # need a dummy field, UserWarning: You passed a `dataset_text_field` argument to the SFTTrainer, the value you passed will override the one in the `SFTConfig`.
-            tokenizer=processor.tokenizer,
+            processing_class=processor.tokenizer,
             peft_config=get_peft_config(model_config), #if there's no peft config, then return None
             callbacks=[RichProgressCallback] if TRL_USE_RICH else None,
             data_collator=data_collator,
             dataset_kwargs={"skip_prepare_dataset": True}
         )
-        
-    print_trainable_parameters(trainer.model,f"model_structure.json")
     
+    print_trainable_parameters(trainer.model,f"model_structure.json")
+    #import pdb; pdb.set_trace()
 
     # trainer.train(resume_from_checkpoint = training_args.resume_from_checkpoint)
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
