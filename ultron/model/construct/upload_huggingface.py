@@ -26,18 +26,33 @@ def upload_file():
     
     api = HfApi()
     api.upload_folder(
-        folder_path="/home/mc_lmy/model/mc-llava_v1.6_vicuna_7b-lora-embodied_mini_craft_10-10-08-llava-v1.6-A100-c4-e3-b16-a4",
-        repo_id="limuyu011/jarvis-001",
+        folder_path="/scratch/mc_lmy/models/JARVIS/checkpoints/mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-c8-e3-b16-a4/checkpoint-1200",
+        path_in_repo="limuyu011/mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-1200",
+        repo_id="limuyu011/mc_models",
         repo_type="model",
+    )
+    
+    from huggingface_hub import HfApi
+
+def upload_file(file_name="/home/mc_lmy/workspace/mark2.tar.gz"):
+    api = HfApi()
+    api.upload_file(
+        path_or_fileobj="/scratch/mc_lmy/models/JARVIS/checkpoints/mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-c8-e3-b16-a4/checkpoint-1200",
+        path_in_repo="mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-c8-e3-b16-a4-1200.tar.gz",  # 这里可以指定在仓库中的路径和文件名
+        repo_id="limuyu011/mc_models",
+        repo_type="model"
     )
 
 if __name__ == "__main__":
-    upload_file()
-    exit()
+    my_list = [
+        "/scratch/mc_lmy/models/JARVIS/checkpoints/mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-c8-e3-b16-a4/checkpoint-1200",
+    ]
+    #upload_file()
+    #exit()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-path", type=str, default="/home/mc_lmy/model/mc-llava_v1.6_vicuna_7b-lora-embodied_mini_craft_10-10-08-llava-v1.6-A100-c4-e3-b16-a4")
+    parser.add_argument("--model-path", type=str, default="/scratch/mc_lmy/models/JARVIS/checkpoints/mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-c8-e3-b16-a4/checkpoint-1200")
     parser.add_argument("--enable-processor", type=bool, default=True)
-    parser.add_argument("--hub_id", type=str, default="limuyu011/jarvis-001")
+    parser.add_argument("--hub_id", type=str, default="limuyu011/mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-1200")
 
     args = parser.parse_args()
 

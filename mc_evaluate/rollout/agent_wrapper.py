@@ -2,6 +2,9 @@ import time
 from ultron.model.inference import action_mapping, load_model, processor_wrapper
 from rich import print
 from openai import OpenAI
+import random
+from typing import Literal
+import copy
 
 class Agent:
     """只能按照rt2格式运行，早晚要改 """
@@ -11,7 +14,7 @@ class Agent:
         self.processor_wrapper = processor_wrapper.ProcessorWrapper(self.processor,model_name=self.VLM_backbone)
         self.history_num = history_num
         self.history = []
-        self.action_map = action_mapping.ActionTokenizer(tokenizer_type=self.LLM_backbone)
+        self.action_map = action_mapping.OneActionTokenizer(tokenizer_type=self.LLM_backbone)
         self.device = device
         self.temperature = temperature
         
@@ -37,13 +40,13 @@ class Agent:
         
         if "vicuna_mistral" in  self.model_path:
             outputs = self.processor.batch_decode(generate_ids, skip_special_tokens=False, clean_up_tokenization_spaces=False)[0]
-            actions =  self.action_map.map(outputs)
+            actions =  self.action_map.decode(outputs)
         else:
             if verbos:
                 outputs = self.processor.batch_decode(generate_ids, skip_special_tokens=False, clean_up_tokenization_spaces=False)[0]
                 print(outputs)
                 print(generate_ids)
-            actions = self.action_map.map(generate_ids)
+            actions = self.action_map.decode(generate_ids)
         return actions
     
     def analyze_forward(self,observations,instructions):
@@ -84,12 +87,12 @@ class Agent:
             start = time.time()
             outputs = self.processor.batch_decode(generate_ids, skip_special_tokens=False, clean_up_tokenization_spaces=False)[0]
             print(outputs)
-            actions = self.action_map.map(outputs)
+            actions = self.action_map.decode(outputs)
             end = time.time()
             print("Processing outputs and mapping actions for 'vicuna_mistral' took {:.3f} seconds.".format(end - start))
         else:
             start = time.time()
-            actions = self.action_map.map(generate_ids)
+            actions = self.action_map.decode(generate_ids)
             end = time.time()
             print("Mapping actions took {:.3f} seconds.".format(end - start))
 
@@ -100,12 +103,28 @@ class Agent:
         return actions
 
 class VLLM_AGENT:
-    def __init__(self,checkpoint_path,openai_api_base,history_num=0,openai_api_key="EMPTY",device= "cuda:0",
+    def __init__(self,checkpoint_path,openai_api_base,openai_api_key="EMPTY",
+                 history_num=0,action_chunk_len=1,bpe=0,
+                 device= "cuda:0",
+                instruction_type:Literal['simple','recipe'] = 'recipe',
                 temperature=0.5):
+        
         self.LLM_backbone,self.VLM_backbone = load_model.load_visual_model(device=device,checkpoint_path=checkpoint_path,quick_load=True)
-        self.action_tokenizer = action_mapping.ActionTokenizer(tokenizer_type=self.LLM_backbone)
+        self.bpe = bpe
+        if bpe:
+            self.action_tokenizer = action_mapping.BPEActionTokenizer(tokenizer_type=self.LLM_backbone,)
+        else:
+            self.action_tokenizer = action_mapping.OneActionTokenizer(tokenizer_type=self.LLM_backbone)
+        from file_utils import load_json_file
+        from pathlib import Path
+        self.text_library = load_json_file(Path(__file__).parent/"assert"/"instructions.json")
         self.processor_wrapper = processor_wrapper.ProcessorWrapper(None,model_name=self.VLM_backbone)
+        # 一次返回一个action chunk
+        self.action_chunk_len=action_chunk_len
+        self.actions = []
+        # 用于带有记忆的agent
         self.history_num = history_num
+        
         self.history = []
         self.client = OpenAI(
             api_key=openai_api_key,
@@ -114,8 +133,9 @@ class VLLM_AGENT:
         models = self.client.models.list()
         self.model = models.data[0].id
         self.temperature = temperature
+        self.instruction_type = instruction_type
         self.tokenizer = None
-        if self.LLM_backbone=="llama-3":
+        if self.LLM_backbone=="llama-3" or self.LLM_backbone=="llama-2":
             from transformers import AutoTokenizer
             self.tokenizer = AutoTokenizer.from_pretrained(
                 checkpoint_path,  
@@ -124,15 +144,56 @@ class VLLM_AGENT:
     def reset(self):
         self.history = []
         
+    def create_instruction(self,text):
+        return random.choice(self.text_library[text].get("instruct"))
+        
+    def create_thought(self,text):
+        return copy.copy(self.text_library[text].get("thought",text))
+        
+    def add_prompt(self,text):
+        prompt =None
+        if self.instruction_type == 'recipe':
+            prompt = self.create_instruction(text)
+            recipe = self.text_library[text].get("recipe")
+            if recipe:
+                prompt += "\nArrange the materials in the crafting grid according to the following pattern: \n"
+                prompt += recipe[0]
+                # 为了保证之前的模型依然能用
+                for jdx in range(1,len(recipe)):
+                    prompt +="\nEach " + recipe[jdx][0] + " represents a " + recipe[jdx][1] + ".\n"
+        elif self.instruction_type == 'simple':
+            prompt = self.create_thought(text) #因为老版和新版不太一样
+        else:
+            raise ValueError(f"do not set the instruction class {self.instruction_type}")
+        return prompt
+        
     def forward(self,observations,instructions,verbos=False):
+        if self.actions:
+            if verbos:
+                print(self.actions)
+            return self.actions.pop(0)
         messages = []
         image = self.processor_wrapper.create_image_input(observations[0]) 
-        if not self.history: #如果历史为空
-            self.history = [(image,self.action_tokenizer.null_token())]*self.history_num
-        new_history = [None]*self.history_num
-        new_history[:-1] = self.history[1:]
-        
-        messages.append(self.processor_wrapper.create_message_vllm(prompt=instructions[0],image=image))
+        prompts = [self.add_prompt(instructions[0])]
+        thought= self.create_thought(instructions[0])
+        images = [image]
+        if self.history_num:
+            if not self.history: #如果历史为空
+                self.history = [(image,self.action_tokenizer.null_token()[0],copy.copy(thought),0)]*self.history_num
+            new_history = [None]*self.history_num
+            new_history[:-1] = self.history[1:]
+            history_images = []
+            for im,action,past_thought,_ in self.history:
+                prompts[-1] = prompts[-1]+"\nthought: " + past_thought + "\nobservation: "  #往上一个prompt上加上这一步的thought
+                history_images.append(im)
+                prompts.append("\naction: "+ action)
+            history_images.append(image)
+            images = history_images
+        if self.instruction_type != 'simple':
+            prompts[-1]  = prompts[-1]+"\nthought: " + thought + "\nobservation: "
+        if verbos:
+            print(prompts)
+        messages.append(self.processor_wrapper.create_message_vllm(prompt=prompts,image=images))
         open_logprobs = True if verbos else False
         chat_completion = self.client.chat.completions.create(
             messages=messages,
@@ -145,15 +206,27 @@ class VLLM_AGENT:
         if verbos:
             print(chat_completion)
         outputs = chat_completion.choices[0].message.content
-        new_history[-1] = (image,outputs)
-        self.history = new_history
-        if self.LLM_backbone=="llama-3":
-            #outputs = "<|reserved_special_token_178|><|reserved_special_token_231|><|reserved_special_token_209|><|reserved_special_token_179|>"
+        if self.history_num:
+            new_history[-1] = (image,outputs,thought,self.history[-1][-1]+1)
+            self.history = new_history
+        if self.LLM_backbone=="llama-3" or self.LLM_backbone=="llama-2":
+            # outputs = "<|reserved_special_token_178|><|reserved_special_token_231|><|reserved_special_token_209|><|reserved_special_token_179|>"
             outputs = self.tokenizer(outputs)["input_ids"]
         if verbos:
+            if self.history_num:
+                print("idx of this token: ",self.history[-1][-1])
             print(outputs)
-        actions =  self.action_tokenizer.map(outputs)
-        return actions
+
+        actions =  self.action_tokenizer.decode(outputs)
+
+        if not self.bpe:
+            len_action = min(self.action_chunk_len,len(actions))
+            self.actions = actions[:len_action]
+        else:
+            self.actions = actions
+        if verbos:
+            print(self.actions)
+        return self.actions.pop(0)
 
 if __name__ == "__main__":
     from PIL import Image

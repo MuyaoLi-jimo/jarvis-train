@@ -1,0 +1,30 @@
+defaults:
+  - base
+  - _self_
+
+model:
+  lora_target_modules:
+    - "embed_tokens"
+    - "out_proj"
+    - "k_proj"
+    - "q_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+    - "lm_head"
+    - "fc1"
+    - "fc2"
+    - "linear_1"
+    - "linear_2"
+
+train:
+  use_sfttrainer: false
+  optimizer_param_groups:
+    - params_regex: ".*vision_tower.*"
+      lr_multiplier: 0.3
+    - params_regex: ".*multi_modal_projector.*"
+      lr_multiplier: 0.3
+    - params_regex: ".*language_model.*"
+      lr_multiplier: 1.0

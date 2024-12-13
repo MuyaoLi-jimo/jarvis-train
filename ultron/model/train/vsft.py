@@ -1,12 +1,7 @@
 import logging
 import os
 from contextlib import nullcontext
-from PIL import Image
 import pathlib
-import json
-import numpy as np
-import torch
-from torchvision import transforms
 
 
 TRL_USE_RICH = os.environ.get("TRL_USE_RICH", False)
@@ -19,17 +14,16 @@ if TRL_USE_RICH:
     from rich.console import Console
     from rich.logging import RichHandler
 
+import inspect
+from datasets import load_dataset
 
-from accelerate import Accelerator
-from datasets import load_dataset, Dataset
-
+import torch
 from tqdm.rich import tqdm
 from transformers import AutoTokenizer, AutoProcessor,AutoModelForCausalLM,GenerationConfig
 from transformers import FuyuProcessor, LlavaProcessor, Blip2Processor, LlavaNextProcessor
 from transformers import LlavaForConditionalGeneration, FuyuForCausalLM, Blip2ForConditionalGeneration, LlavaNextForConditionalGeneration
-from torch.optim  import AdamW
-from transformers import get_scheduler
-
+from transformers import Trainer
+from peft import prepare_model_for_kbit_training,get_peft_model
 from trl import (
     ModelConfig,
     RichProgressCallback,
@@ -39,14 +33,15 @@ from trl import (
     get_quantization_config,
     get_kbit_device_map,
 )
+from trl.trainer.utils import peft_module_casting_to_bf16
+from omegaconf import OmegaConf
 from rich import print,console
 from ultron.model.train.utils import (
-    prepare_conversation_text_with_images,
-    prepare_conversation_for_molmo,
     print_trainable_parameters,
-    pad_sequence,
-    transform_image,
+    prepare_optimizer_scheduler,
 )
+from ultron.model.train.data_collator import MultimodalDataCollator
+import dataclasses
 from dataclasses import dataclass, field
 
 tqdm.pandas()
@@ -54,166 +49,11 @@ tqdm.pandas()
 if TRL_USE_RICH:
     logging.basicConfig(format=FORMAT, datefmt="[%X]", handlers=[RichHandler()], level=logging.INFO)
 
-################
-# Create a data collator to encode text and image pairs
-################
-
-class MultimodalDataCollator:
-    def __init__(self, processor,model_name_or_path, image_folder = '/nfs-shared/data/JARVIS/tmp/images', with_image = True, resize_image = True, max_seq_length = 1024):
-        self.processor = processor
-        self.model_type = None
-        self.user_template = None
-        self.assistant_template = None
-        self.tokenize_redundant = 0
-        model_name_or_path = model_name_or_path.lower()
-        self.model_name_or_path = model_name_or_path
-        if "molmo" in model_name_or_path:
-            self.model_type = "molmo"
-            self.user_template = " User:"
-            self.assistant_template = " Assistant:"
-        elif "mistral" in model_name_or_path:
-            self.model_type = "mistral"
-            self.user_template = "[INST]"
-            self.assistant_template = "[/INST]"
-            self.tokenize_redundant = 1
-        elif "llama-3" in model_name_or_path or "llama3" in  model_name_or_path or "llama_3" in model_name_or_path:
-            self.model_type = "llama-3"
-            self.user_template ="<|start_header_id|>user<|end_header_id|>"
-            self.assistant_template = "<|start_header_id|>assistant<|end_header_id|>"
-            self.tokenize_redundant = 1
-        self.image_folder = image_folder
-        self.with_image = with_image
-        self.resize_image = resize_image
-        self.random_image_width = 224
-        self.random_image_height = 224
-        self.default_image_size = (672,336) # with this image size, the llava-next will split it into 3 patches, not 5 pathces in 640*360
-        self.max_seq_length = max_seq_length
-        self.no_image_policy = 'random' # 'random' or 'ignore'
-        self.my_console = console.Console()
-
-            
-    
-    def __call__(self, examples):
-        texts = []
-        if self.with_image:
-            images = []
-        else:
-            images = None
-
-        for example in examples:
-            if 'text' in example.keys():
-                text = example['text']
-            elif 'conversations' in example.keys():  
-                if "molmo" in self.model_name_or_path:
-                    text = prepare_conversation_for_molmo(example)
-                else:
-                    text = prepare_conversation_text_with_images(example, self.processor.tokenizer)  #合并<image>，并转化为加入chat template的版本
-            else:
-                print('No text or conversations found in example')
-                text = ''
-                # continue
-            texts.append(text)
-            # 处理图片
-            if example['image'] and self.with_image:
-                if isinstance(example['image'], list):
-                    image_paths = example['image']
-                elif isinstance(example['image'], str):
-                    image_paths = [example['image']]
-                else:
-                    raise ValueError("example_image must be a string or a list of strings.")
-                
-                for image_path in image_paths:
-                    if image_path[0]!="/": #if not abs path
-                        image_path = pathlib.Path(self.image_folder)/image_path
-                    else:
-                        image_path = pathlib.Path(image_path)
-                    
-                    if not image_path.exists():
-                        print(f"Image file {image_path} not found, set a random image instead.")
-                        random_image_dim = [self.random_image_width, self.random_image_height]
-                        image = torch.rand(3, *random_image_dim)
-                        images.append(image)
-                    else:
-                        image = Image.open(image_path)
-                        image=transform_image(image)
-                        if "llava" in self.model_name_or_path and self.resize_image:
-                            image = image.resize(self.default_image_size)
-                            # 创建一个 transform 对象，将 PIL.Image 转换为 Tensor
-                        if "molmo" not in self.model_name_or_path:
-                            transform = transforms.ToTensor()
-                            # 将图像转换为 Tensor
-                            image = transform(image)
-                        
-                        images.append(image)
-
-        if self.with_image and len(images) == 0:
-            images = None
-            
-        #prepare the batches
-        if self.model_type =="molmo":  #truncation=True
-            image_idx = 0
-            batch_inputs = []
-            batch = {}
-            for user_text,assistant_text,image_num in texts:
-                inputs = self.processor.process(
-                    images=images[image_idx:image_idx+image_num],
-                    text=user_text
-                )
-                tokens = self.processor.tokenizer.encode(assistant_text, add_special_tokens=False)
-                tokens_tensor = torch.tensor(tokens, dtype=torch.long)
-                eos_tensor = torch.tensor([self.processor.tokenizer.eos_token_id], dtype=torch.long)
-                inputs["input_ids"] = torch.cat([inputs["input_ids"], tokens_tensor, eos_tensor])
-                batch_inputs.append(inputs)
-                image_idx += image_num
-
-            input_ids = [b['input_ids'].clone().detach() for b in batch_inputs]
-            batch['input_ids'] = pad_sequence(input_ids, padding_value=self.processor.tokenizer.pad_token_id, max_length=self.max_seq_length, truncation=True)
-            # Stack other elements
-            for key in batch_inputs[0]:
-                if key != 'input_ids':
-                    batch[key] = torch.stack([b[key].clone().detach() for b in batch_inputs], dim=0)
-                    
-        else:
-            batch = self.processor(text = texts, images = images, return_tensors="pt", padding='max_length', max_length=self.max_seq_length, truncation=True)
-       #torch.set_printoptions(threshold=10000)
-        labels = batch["input_ids"].clone()
-        check_id = -1 if processor.tokenizer.padding_side=="right" else 0
-        if labels[0][check_id].item()!=self.processor.tokenizer.pad_token_id:
-            self.my_console.log("[red]Warning! the token length is probably out of max token length!")
-        # TODO: add back -- 非常重要
-        for label in labels:
-            np_label = label.cpu().numpy()
-            cur_len = 0
-            instruction_beg_token_ids =  np.array(self.processor.tokenizer(self.user_template).input_ids[self.tokenize_redundant:]) #remove <s>
-            instruction_end_token_ids = np.array(self.processor.tokenizer(self.assistant_template).input_ids[self.tokenize_redundant:]) #remove <s>
-            """ 
-            if self.processor.tokenizer.padding_side == "left":
-                padding_len = sum(label==self.processor.tokenizer.pad_token_id)
-                cur_len = padding_len + 2 #tokenizer：1<s>，chat_template:1<s>
-            else:
-                cur_len = 1
-            label[0:cur_len] = -100
-            """
-            label_len,beg_len,end_len = len(label), len(instruction_beg_token_ids), len(instruction_end_token_ids)
-            beg_matches = np.where((np_label[np.arange(label_len - beg_len + 1)[:, None] + np.arange(beg_len)] == instruction_beg_token_ids).all(axis=1))[0].tolist()
-            end_matches = np.where((np_label[np.arange(label_len - end_len + 1)[:, None] + np.arange(end_len)] == instruction_end_token_ids).all(axis=1))[0].tolist()
-            assert len(beg_matches)==len(end_matches)
-            label[:beg_matches[0]]=-100
-            for instruction_beg_idx,instruction_end_idx in zip(beg_matches,end_matches):
-                label[instruction_beg_idx:instruction_end_idx]= -100
-            
-
-        if self.processor.tokenizer.pad_token_id is not None:
-            labels[labels == self.processor.tokenizer.pad_token_id] = -100
-        batch["labels"] = labels
-        #import pdb; pdb.set_trace()
-        return batch
-
 @dataclass
 class MoreConfig:
-    private_lora_structure:bool = field(
-        default=False,
-        metadata={"help": "Whether to use adapter or not."},
+    cfg_file:str = field(
+        default="config/base.yaml",
+        metadata={"help": "the config file path of specific setting"},
     )
     
 
@@ -221,6 +61,12 @@ if __name__ == "__main__":
     
     parser = TrlParser((SFTScriptArguments, SFTConfig, ModelConfig,MoreConfig))
     sft_script_args, training_args, model_config,more_config = parser.parse_args_and_config()
+    
+    file_name = pathlib.Path(__file__).parent
+    special_cfg = OmegaConf.load(file_name/more_config.cfg_file)
+    if more_config.cfg_file != "config/base.yaml":
+        base_config = OmegaConf.load(file_name/"config/base.yaml")
+        special_cfg = OmegaConf.merge(base_config, special_cfg)
 
     training_args.gradient_checkpointing_kwargs = dict(use_reentrant=False)
     # Force use our print callback
@@ -233,7 +79,7 @@ if __name__ == "__main__":
     ################
     ### discard: if no chat_template is defined in tokenizer_config.json, use the default one
     DEFAULT_CHAT_TEMPLATE = """{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = message['role'] + ':\n\n'+ message['content'] + '\n' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}"""
-    VICUNA_CHAT_TEMPLATE = """"{% for message in messages %}{% if message['role'] != 'system' %}{{ message['role'].upper() + ': '}}{% endif %}{# Render all images first #}{% for content in message['content'] | selectattr('type', 'equalto', 'image') %}{{ '<image>\n' }}{% endfor %}{# Render all text next #}{% if message['role'] != 'assistant' %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{{ content['text'] + ' '}}{% endfor %}{% else %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{% generation %}{{ content['text'] + ' '}}{% endgeneration %}{% endfor %}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ 'ASSISTANT:' }}{% endif %}"}"""
+    VICUNA_CHAT_TEMPLATE = """{{ bos_token }}{% for message in messages %}{% if message['role'] != 'system' %}{{ ' '+message['role'].upper() + ': '}}{% endif %}{# Render all images first #}{% for content in message['content'] | selectattr('type', 'equalto', 'image') %}{{ '<image>\n' }}{% endfor %}{# Render all text next #}{% if message['role'] != 'assistant' %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{{ content['text'] + '\n'}}{% endfor %}{% else %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{% generation %}{{ content['text'] + eos_token + '\n' }}{% endgeneration %}{% endfor %}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ 'ASSISTANT:' }}{% endif %}"""
     torch_dtype = (
         model_config.torch_dtype
         if model_config.torch_dtype in ["auto", None]
@@ -278,15 +124,77 @@ if __name__ == "__main__":
     if not processor.tokenizer.chat_template:
         if 'fuyu' in model_config.model_name_or_path:
             processor.tokenizer.chat_template = DEFAULT_CHAT_TEMPLATE
-        elif 'vicuna' in model_config.model_name_or_path:
-            processor.tokenizer.chat_template = VICUNA_CHAT_TEMPLATE
         else:
             raise ValueError("No chat_template found in the tokenizer_config.json, please set the chat_template in the tokenizer_config.json.")
-    processor.tokenizer.padding_side = "right"
+    if 'vicuna' in model_config.model_name_or_path:
+        processor.tokenizer.chat_template = VICUNA_CHAT_TEMPLATE
     
-    # Ensure use_cache is set to False
-    model.config.use_cache = False
+    processor.tokenizer.padding_side = "right"
+    if getattr(processor.tokenizer, "pad_token", None) is None:
+        processor.tokenizer.pad_token = processor.tokenizer.eos_token
+    
+    #############
+    #  PEFT
+    #############
+    if model_config.use_peft:
+        model_config.lora_target_modules = list(special_cfg.model.lora_target_modules)
+        peft_config=get_peft_config(model_config)
+        
+        _support_gc_kwargs = hasattr( training_args, "gradient_checkpointing_kwargs") and "gradient_checkpointing_kwargs" in list(inspect.signature(prepare_model_for_kbit_training).parameters)
+        gradient_checkpointing_kwargs = getattr(training_args, "gradient_checkpointing_kwargs", None) or {}
+        is_sharded_qlora = False
+        # Below is to support QLoRA + FSDP / DS-Zero3 - one should never call
+        # peft_module_casting_to_bf16 or prepare_model_for_kbit_training when doing
+        # QLoRA + FSDP / DS-Zero3
+        if getattr(model, "is_loaded_in_4bit", False):
+            for _, param in model.named_parameters():
+                if param.__class__.__name__ == "Params4bit":
+                    is_sharded_qlora = param.data.device.type in {"cpu", "meta"}
+                    break
+        if getattr(model, "is_loaded_in_8bit", False) or (getattr(model, "is_loaded_in_4bit", False) and not is_sharded_qlora):
+            prepare_model_kwargs = {
+                "use_gradient_checkpointing": getattr(training_args, "gradient_checkpointing", False)
+            }
 
+            if _support_gc_kwargs:
+                prepare_model_kwargs["gradient_checkpointing_kwargs"] = gradient_checkpointing_kwargs
+
+            model = prepare_model_for_kbit_training(model, **prepare_model_kwargs)
+
+            if training_args is not None:
+                training_args = dataclasses.replace(training_args, gradient_checkpointing=False)
+        elif getattr(training_args, "gradient_checkpointing", False) and (
+            "use_reentrant" not in gradient_checkpointing_kwargs
+            or gradient_checkpointing_kwargs["use_reentrant"]
+        ):
+            # For backward compatibility with older versions of transformers
+            if hasattr(model, "enable_input_require_grads"):
+                model.enable_input_require_grads()
+            else:
+
+                def make_inputs_require_grad(module, input, output):
+                    output.requires_grad_(True)
+
+                model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
+
+        if (
+            "autocast_adapter_dtype" in list(inspect.signature(get_peft_model).parameters)
+            and getattr(model, "is_loaded_in_4bit", False)
+            and is_sharded_qlora
+        ):
+            model = get_peft_model(model, peft_config, autocast_adapter_dtype=False)
+        else:
+            model = get_peft_model(model, peft_config)
+        if (training_args.bf16 and getattr(model, "is_loaded_in_4bit", False) and not is_sharded_qlora):
+            peft_module_casting_to_bf16(model)
+        
+
+    
+    ##################
+    # DataCollator
+    ##################
+
+    # 找到image_fold
     image_fold = pathlib.Path(sft_script_args.dataset_name).parent
     image_fold = image_fold.parent if image_fold.name=="output" else image_fold
     if 'llava-next' in model_config.model_name_or_path or 'llava_next' in model_config.model_name_or_path or 'llava-v1.6' in model_config.model_name_or_path or "molmo" in model_config.model_name_or_path:
@@ -294,8 +202,6 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"be careful! do not write a code for it  {model_config.model_name_or_path}")
 
-    if more_config.private_lora_structure:
-        model_config.lora_target_modules = ["embed_tokens","out_proj","k_proj","q_proj","v_proj","o_proj","gate_proj","up_proj","down_proj","lm_head","fc1","fc2","linear_1","linear_2"]
 
     ################
     # Dataset
@@ -321,89 +227,51 @@ if __name__ == "__main__":
     )
 
     ################
-    # Optimizer
-    ################
-    # 计算每个epoch的更新步数
-    num_train_samples = len(train_dataset)  # 训练集样本总数
-    per_device_train_batch_size = training_args.per_device_train_batch_size
-    num_train_epochs = training_args.num_train_epochs
-    num_devices = training_args.n_gpu if training_args.n_gpu > 0 else 1  # 根据GPU数量调整，无GPU时默认为1
-
-    # 计算每个epoch的更新步数
-    from math import ceil
-    num_update_steps_per_epoch = ceil(num_train_samples / (per_device_train_batch_size * num_devices))
-
-    # 计算总的训练步数
-    total_training_steps = int(num_update_steps_per_epoch * training_args.num_train_epochs)
-
-    # Adjust the total training steps considering max_steps
-    if training_args.max_steps > 0:
-        total_training_steps = training_args.max_steps
-
-    # 计算预热步数
-    if training_args.warmup_steps > 0:
-        num_warmup_steps = training_args.warmup_steps
-    else:
-        num_warmup_steps = int(total_training_steps * training_args.warmup_ratio)
-
-    optimizer = AdamW([
-        {
-            'params': model.vision_tower.parameters(),
-            'lr': training_args.learning_rate * 0.1,
-            'weight_decay': training_args.weight_decay,
-            'betas': (training_args.adam_beta1, training_args.adam_beta2),
-            'eps': training_args.adam_epsilon,
-            'correct_bias': False,
-        },
-        {
-            'params': model.multi_modal_projector.parameters(),
-            'lr': training_args.learning_rate * 0.1,
-            'weight_decay': training_args.weight_decay,
-            'betas': (training_args.adam_beta1, training_args.adam_beta2),
-            'eps': training_args.adam_epsilon,
-            'correct_bias': False,
-        },
-        {
-            'params': model.language_model.parameters(),
-            'lr': training_args.learning_rate,
-            'weight_decay': training_args.weight_decay,
-            'betas': (training_args.adam_beta1, training_args.adam_beta2),
-            'eps': training_args.adam_epsilon,
-            'correct_bias': False,
-        }
-    ])  # Note: Set correct_bias=False to follow standard AdamW behavior in Transformers
-    
-    scheduler = get_scheduler(
-        name=training_args.lr_scheduler_type,
-        optimizer=optimizer,
-        num_warmup_steps=num_warmup_steps,
-        num_training_steps=total_training_steps,
-        **training_args.lr_scheduler_kwargs,
-    )
-    ################
     # Training
     ################
     from rich import print
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         training_args.resume_from_checkpoint = True
         
+    # Ensure use_cache is set to False
+    model.config.use_cache = False   
+    
+    if special_cfg.train.use_sfttrainer:  
+             
+        with init_context:  #使用trl自带的输出增强
+            trainer = SFTTrainer(
+                model=model,
+                #optimizers = prepare_optimizer_scheduler(model,len(train_dataset),special_cfg,training_args),
+                args=training_args,
+                train_dataset=train_dataset,
+                eval_dataset=eval_dataset,
+                dataset_text_field="text",  # need a dummy field, UserWarning: You passed a `dataset_text_field` argument to the SFTTrainer, the value you passed will override the one in the `SFTConfig`.
+                processing_class=processor.tokenizer,
+                peft_config=get_peft_config(model_config), #if there's no peft config, then return None
+                callbacks=[RichProgressCallback] if TRL_USE_RICH else None,
+                data_collator=data_collator,
+                dataset_kwargs={"skip_prepare_dataset": True}
+            )
 
-    with init_context:  #使用trl自带的输出增强
-        trainer = SFTTrainer(
+    else: 
+        training_args.dataset_text_field = "text"
+        training_args.dataset_kwargs = {"skip_prepare_dataset": True}
+
+        trainer = Trainer( #MyTrainer(
             model=model,
-            optimizers = (optimizer,scheduler),
-            args=training_args,
+            args=training_args,#special_cfg=special_cfg, 
+            #optimizers=prepare_optimizer_scheduler(model,len(train_dataset),special_cfg,training_args),
+            data_collator=data_collator,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
-            dataset_text_field="text",  # need a dummy field, UserWarning: You passed a `dataset_text_field` argument to the SFTTrainer, the value you passed will override the one in the `SFTConfig`.
             processing_class=processor.tokenizer,
-            peft_config=get_peft_config(model_config), #if there's no peft config, then return None
+            model_init=None,
+            compute_metrics=None,
             callbacks=[RichProgressCallback] if TRL_USE_RICH else None,
-            data_collator=data_collator,
-            dataset_kwargs={"skip_prepare_dataset": True}
+            preprocess_logits_for_metrics=None,
         )
-    
-    print_trainable_parameters(trainer.model,f"model_structure.json")
+
+    print_trainable_parameters(trainer.model,trainer.optimizer,f"model_structure.json")
     #import pdb; pdb.set_trace()
 
     # trainer.train(resume_from_checkpoint = training_args.resume_from_checkpoint)

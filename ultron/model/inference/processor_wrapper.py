@@ -105,28 +105,35 @@ class ProcessorWrapper:
             "molmo":(2560,1440),
         }
 
-    def create_message_vllm(self,image:Union[list,str,pathlib.PosixPath,np.ndarray,Image.Image],role:Literal["user","assistant"]="user",input_type:Literal["image","text"]="image",prompt:str=""):
+    def get_image_message(self,source_data):
+        image_suffix = get_suffix(source_data)
+        image_message = {
+                "type": "image_url",
+                "image_url": { "url": f"data:image/{image_suffix};base64,{encode_image_to_base64(source_data)}"},
+            }
+        return image_message
+
+    def create_message_vllm(self,image:Union[list,str,pathlib.PosixPath,np.ndarray,Image.Image],role:Literal["user","assistant"]="user",input_type:Literal["image","text"]="image",prompt:Union[list,str]="",):
         if role not in {"user","assistant"}:
             raise ValueError(f"a invalid role {role}")
-        
+        if isinstance(prompt,str):
+            prompt = [prompt]
+        message = {
+            "role": "user",
+            "content": [],
+        }
         if input_type=="image":
-            image = encode_image_to_base64(image)
-            image_suffix = get_suffix(image)
-            message = {
-                "role":role,
-                "content": [
-                    {
+            if not isinstance(image,list):
+                image = [image]
+            for idx, text in enumerate(prompt):
+                message["content"].append({
                     "type": "text",
-                    "text": f"{prompt}"
-                    },
-                    {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/{image_suffix};base64,{image}"
-                    },
-                    },
-                ]
-            }
+                    "text": f"{text}\n"
+                })
+                if idx < len(image):
+                    message["content"].append(self.get_image_message(image[idx]))
+            for idx in range(len(prompt), len(image)):
+                message["content"].append(self.get_image_message(image[idx])) 
         return message
 
     def create_message(self,role="user",input_type="image",prompt:str="",image=None):

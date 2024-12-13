@@ -1,5 +1,6 @@
 data/
 logs/
+log/
 models/
 checkpoints/
 submodules/
@@ -9,6 +10,7 @@ tmp/
 temp/
 trash/
 wandb/
+record/
 ultron.egg-info/
 
 out

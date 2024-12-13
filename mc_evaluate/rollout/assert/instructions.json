@@ -1,0 +1,402 @@
+{
+    "craft item crafting_table": {
+        "recipe":[
+            "\n plank | plank \n plank | plank \n"
+        ],
+        "thought":"craft a crafting table.",
+        "instruct":[
+        "help me to craft a crafting table.",
+        "craft a crafting table.",
+        "Craft a crafting table.",
+        "craft a crafting table for crafts.",
+        "Could you craft a crafting table for me?",
+        "I need you to craft a crafting table.",
+        "Please craft a crafting table in the game.",
+        "Craft me a crafting table quickly.",
+        "Make sure to craft a crafting table for the task.",
+        "Craft a crafting table so I can use it.",
+        "Let’s craft a crafting table for this project."
+    ]},
+    "craft item crafting table": {
+        "recipe":[
+            "\n plank | plank \n plank | plank \n"
+        ],
+        "thought":"craft a crafting table.",
+        "instruct":[
+        "help me to craft a crafting table.",
+        "craft a crafting table.",
+        "Craft a crafting table.",
+        "craft a crafting table for crafts.",
+        "Could you craft a crafting table for me?",
+        "I need you to craft a crafting table.",
+        "Please craft a crafting table in the game.",
+        "Craft me a crafting table quickly.",
+        "Make sure to craft a crafting table for the task.",
+        "Craft a crafting table so I can use it.",
+        "Let’s craft a crafting table for this project."
+    ]},
+    "craft item torch": {
+        "recipe":[
+            "\n coal | air \n stick | air \n"
+        ],
+        "thought":"craft a torch.",
+        "instruct":[
+            "help me to craft a torch.",
+            "craft a torch.",
+            "Craft a torch.",
+            "craft a torch for lighting.",
+            "Could you craft a torch for me?",
+            "I need you to craft a torch.",
+            "Please craft a torch in the game.",
+            "Craft me a torch quickly.",
+            "Make sure to craft a torch for the cave.",
+            "Craft a torch so I can use it.",
+            "Let’s craft a torch for this adventure.",
+            "Can you craft a torch for this mission?",
+            "It’s time to craft a torch for our exploration.",
+            "Craft a torch to light up the area.",
+            "Help me craft a torch for the dark tunnels.",
+            "Let’s craft a torch as we need light.",
+            "Would you please craft a torch for our journey?",
+            "Go ahead and craft a torch for better visibility.",
+            "Craft a torch so we can proceed safely.",
+            "I need you to craft a torch right now.",
+            "Quickly craft a torch to brighten the surroundings.",
+            "Craft a torch in case we need extra light.",
+            "Please craft a torch for our next step.",
+            "Make sure to craft a torch for exploring caves.",
+            "Let’s craft a torch to illuminate our path."
+        ]
+    },
+    "craft item carrot_on_a_stick": {
+        "recipe":[
+            "\n fishing_rod | air \n air | carrot \n"
+        ],
+        "thought":"craft a carrot on a stick.",
+        "instruct":[
+            "Craft a carrot on a stick.",
+            "Create a carrot on a stick.",
+            "Make a carrot on a stick.",
+            "Build a carrot on a stick.",
+            "Construct a carrot on a stick in Minecraft.",
+            "Produce a carrot on a stick for pig riding.",
+            "Craft a carrot on a stick to control pigs.",
+            "Manufacture a carrot on a stick for your adventures.",
+            "Prepare to craft a carrot on a stick for exploration."
+    ]},    
+    "craft item clay": {
+            "recipe":[
+                "\n clay_ball | clay_ball \n clay_ball | clay_ball \n"
+            ],
+            "thought":"craft a clay block.",
+            "instruct":[
+                "Craft a clay block.",
+                "craft a block of clay block.",
+                "Please craft a clay block.",
+                "Craft a clay block using clay balls.",
+                "Can you craft a clay block out of clay balls?",
+                "Help me to craft a clay block.",
+                "Craft a clay block for our building needs.",
+                "I need you to craft a clay block.",
+                "Could you craft a clay block for me, please?",
+                "Craft a block of clay in the game.",
+                "Craft me a clay block quickly.",
+                "Make sure to craft a clay block using clay balls.",
+                "Let’s craft a clay block for the construction.",
+                "Craft a clay block using materials like clay balls."
+    ]},
+    "craft item snow_block": {
+        "recipe":[
+            "\n snowball | snowball \n snowball | snowball \n"
+        ],
+        "thought":"craft a snow block.",
+        "instruct":[
+            "Craft a snow block.",
+            "craft a snow block.",
+            "Please craft a snow block.",
+            "Craft a snow block using snowballs.",
+            "Can you craft a snow block out of snowballs?",
+            "Help me to craft a snow block.",
+            "I need you to craft a snow block.",
+            "Could you craft a snow block for me, please?",
+            "Craft a block of snow in the game.",
+            "Craft me a snow block quickly.",
+            "Make sure to craft a snow block using snowballs.",
+            "Let’s craft a snow block for the construction.",
+            "Craft a snow block using materials like snowballs."
+    ]},
+    "craft item jungle_pressure_plate": {
+        "recipe":[
+            "\n air | air \n jungle_planks | jungle_planks \n"
+        ],
+        "thought":"craft a jungle pressure plate.",
+        "instruct":[
+            "craft a jungle pressure plate.",
+            "Craft a jungle pressure plate.",
+            "Craft a pressure plate.",
+            "Please craft a jungle pressure plate.",
+            "Craft a jungle pressure plate for me.",
+            "Can you craft a jungle pressure plate?",
+            "Can you craft a pressure plate?",
+            "Help me to craft a jungle pressure plate.",
+            "I need you to craft a jungle pressure plate.",
+            "Craft a jungle pressure plate in the game.",
+            "Craft a pressure plate in the game.",
+            "Quickly craft a jungle pressure plate for the mechanism.",
+            "Let’s craft a jungle pressure plate for our setup.",
+            "Make sure to craft a jungle pressure plate.",
+            "Make sure to craft a pressure plate.",
+            "Craft a jungle pressure plate using available jungle planks.",
+            "Craft me a jungle pressure plate using materials from the jungle."
+    ]},  
+    "craft item crimson_pressure_plate": {
+        "recipe":[
+            "\n air | air \n crimson_planks | crimson_planks \n"
+        ],
+        "thought":"craft a crimson pressure plate.",
+        "instruct":[
+            "craft a crimson pressure plate.",
+            "craft a pressure plate.",
+            "Craft a crimson pressure plate.",
+            "Please craft a crimson pressure plate.",
+            "Please craft a pressure plate.",
+            "Craft a crimson pressure plate for me.",
+            "Can you craft a crimson pressure plate?",
+            "Can you craft a pressure plate?",
+            "Help me to craft a crimson pressure plate.",
+            "Help me to craft a pressure plate.",
+            "I need you to craft a crimson pressure plate.",
+            "Craft a crimson pressure plate in the game.",
+            "Quickly craft a crimson pressure plate for the mechanism.",
+            "Let’s craft a crimson pressure plate for our setup.",
+            "Make sure to craft a crimson pressure plate.",
+            "Make sure to craft a pressure plate.",
+            "Craft a crimson pressure plate using available crimson planks.",
+            "Craft me a crimson pressure plate using materials from the crimson planks.",
+            "Craft me a pressure plate using materials from the planks."
+    ]},  
+    "craft item chest_minecart": {
+        "recipe":[
+            "\n air | chest \n air | minecart \n"
+        ],
+        "thought":"craft a minecart with chest.",
+        "instruct":[
+            "Please craft a minecart with chest.",
+            "Craft a minecart with chest for me.",
+            "Can you craft a minecart with chest?",
+            "Help me to craft a minecart with chest.",
+            "I need you to craft a minecart with chest.",
+            "Craft a minecart with chest in the game.",
+            "Quickly craft a minecart with chest for storage.",
+            "Let’s craft a minecart with chest for transporting goods.",
+            "Make sure to craft a minecart with chest.",
+            "Craft a minecart with chest using available materials.",
+            "Could you craft a minecart with chest in your workshop?",
+            "Craft me a minecart with chest for easier haulage.",
+            "Craft a minecart with chest to help move our supplies.",
+            "It’s time to craft a minecart with chest for our project.",
+            "Craft a minecart with chest for efficient transportation.",
+            "Help me craft a minecart with chest for the mine.",
+            "Let’s craft a minecart with chest as we need it for moving items.",
+            "Would you please craft a minecart with chest for our railway?",
+            "Go ahead and craft a minecart with chest for better logistics.",
+            "Craft a minecart with chest so we can proceed with the storage.",
+            "I need you to craft a minecart with chest right now.",
+            "Quickly craft a minecart with chest to improve our cargo handling.",
+            "Craft a minecart with chest in case we need extra capacity.",
+            "Please craft a minecart with chest for our next delivery.",
+            "Make sure to craft a minecart with chest for exploring the rails.",
+            "Let’s craft a minecart with chest to facilitate our resource movement."
+        ]
+    },
+    "craft item white_carpet": {
+        "recipe":[
+            "\n white_wool | white_wool \n air | air \n"
+        ],
+        "thought":"craft a white carpet.",
+        "instruct":[
+            "Please craft a white carpet.",
+            "Craft a white carpet for the room.",
+            "Can you craft a white carpet?",
+            "Help me to craft a white carpet.",
+            "I need you to craft a white carpet.",
+            "Craft a white carpet in the game.",
+            "Quickly craft a white carpet for the building.",
+            "Let’s craft a white carpet for our decoration.",
+            "Make sure to craft a white carpet.",
+            "Craft a white carpet using available materials.",
+            "Could you craft a white carpet for our house?",
+            "Craft me a white carpet for the floor.",
+            "Craft a white carpet to enhance the area.",
+            "It’s time to craft a white carpet for our project.",
+            "Craft a white carpet to complete our design.",
+            "Help me craft a white carpet for the lounge.",
+            "Let’s craft a white carpet, we need it for the living space.",
+            "Would you please craft a white carpet for our gallery?",
+            "Go ahead and craft a white carpet for better aesthetics.",
+            "Craft a white carpet so we can finish the setup.",
+            "I need you to craft a white carpet right now.",
+            "Quickly craft a white carpet to match the decor.",
+            "Craft a white carpet in case we need extra elegance.",
+            "Please craft a white carpet for our next renovation."
+    ]},  
+    "craft item end_rod": {
+        "recipe":[
+            "\n air | blaze_rod \n air | popped_chorus_fruit \n"
+        ],
+        "thought":"craft an end rod.",
+        "instruct":[
+            "Please craft an end rod.",
+            "Craft an end rod for me.",
+            "Can you craft an end rod?",
+            "Help me to craft an end rod.",
+            "I need you to craft an end rod.",
+            "Craft an end rod in the game.",
+            "Quickly craft an end rod for lighting.",
+            "Let’s craft an end rod for our build.",
+            "Make sure to craft an end rod.",
+            "Craft an end rod using available materials.",
+            "Could you craft an end rod for the portal?",
+            "Craft me an end rod for aesthetic purposes.",
+            "Craft an end rod to light up the area.",
+            "It’s time to craft an end rod for our project.",
+            "Craft an end rod for better illumination.",
+            "Help me craft an end rod for the base.",
+            "Let’s craft an end rod, we need it for the structure.",
+            "Would you please craft an end rod for our fortress?",
+            "Go ahead and craft an end rod for enhanced lighting.",
+            "Craft an end rod so we can proceed with the design.",
+            "I need you to craft an end rod right now.",
+            "Quickly craft an end rod to improve our lighting setup.",
+            "Craft an end rod in case we need extra support.",
+            "Please craft an end rod for our next construction phase."
+    ]},  
+    "craft item leather": {
+        "recipe":[
+            "\n rabbit_hide | rabbit_hide \n rabbit_hide | rabbit_hide \n"
+        ],
+        "thought":"craft a piece of leather.",
+        "instruct":[
+            "craft a piece of leather ",
+            "Craft a piece of leather from rabbit hide.",
+            "Please craft a piece of leather using rabbit hide.",
+            "Can you craft a piece of leather out of rabbit hide?",
+            "Can you craft a piece of leather?",
+            "Help me to craft a piece of leather from rabbit hide.",
+            "I need you to craft a piece of leather from rabbit hides.",
+            "I need you to craft a piece of leather",
+            "Could you craft a piece of leather from rabbit hide for me?",
+            "Craft a piece of leather from rabbit hide in the game.",
+            "Craft me a piece of leather quickly using rabbit hide.",
+            "Make sure to craft a piece of leather from rabbit hide.",
+            "Let’s craft a piece of leather from rabbit hide for crafting needs.",
+            "Craft a piece of leather using rabbit hide you have.",
+            "Go ahead and craft a piece of leather from rabbit hide.",
+            "Craft a piece of leather from rabbit hide to use in our gear.",
+            "Please craft a piece of leather."
+        ]},
+    "craft item bucket": {"instruct":[
+        "Create a bucket",
+        "Craft a bucket with the appropriate materials.",
+        "create a bucket using the crafting table"
+    ]},
+    "craft item iron chestplate":{"instruct": [
+        "Create the iron chestplate.",
+        "Craft an iron chestplate.",
+        "Construct the iron chestplate.",
+        "Craft the iron chestplate.",
+        "Craft an iron chestplate.\n",
+        "Forge an iron chestplate.",
+        "Create the iron chestplate.",
+        "Construct an iron chestplate.",
+        "Construct an iron chestplate. at the crafting table."
+    ]},
+    "craft item oak_planks": {
+        "recipe":[
+            "\n oak_log | air \n air | air \n"
+        ],
+        "thought":"craft oak planks.",
+        "instruct":[
+            "craft oak planks",
+            "craft some planks",
+            "Craft oak planks",
+            "Please craft some oak planks.",
+            "Please craft some planks.",
+            "Craft oak planks for me.",
+            "I need you to craft oak planks.",
+            "I need you to craft som planks.",
+            "Can you craft oak planks?",
+            "Can you craft some planks?",
+            "Help me craft oak planks.",
+            "Let’s craft oak planks for building.",
+            "Craft a batch of oak planks.",
+            "Make sure to craft oak planks.",
+            "Craft oak planks in the game.",
+            "Craft some planks in the game.",
+            "Quickly craft some oak planks for construction.",
+            "Craft oak planks using available wood.",
+            "Craft oak planks so I can use them for crafting."
+    ]},
+    "craft item birch_planks": {
+        "recipe":[
+            "\n birch_log | air \n air | air \n"
+        ],
+        "thought":"craft birch planks.",
+        "instruct":[
+            "craft birch planks",
+            "craft some planks",
+            "Craft birch planks",
+            "Please craft some birch planks.",
+            "Please craft some planks.",
+            "Craft birch planks for me.",
+            "I need you to craft birch planks.",
+            "I need you to craft som planks.",
+            "Can you craft birch planks?",
+            "Can you craft some planks?",
+            "Help me craft birch planks.",
+            "Let’s craft birch planks for building.",
+            "Craft a batch of birch planks.",
+            "Make sure to craft birch planks.",
+            "Craft birch planks in the game.",
+            "Craft some planks in the game.",
+            "Quickly craft some birch planks for construction.",
+            "Craft birch planks using available wood.",
+            "Craft birch planks so I can use them for crafting."
+    ]},
+    
+    "craft item glass pane": {"instruct":[
+        "Create a glass pane",
+        "Construct a glass pane",
+        "Construct some glass pane",
+        "Assemble a glass pane",
+        "Craft a glass pane at the crafting table.",
+        "Create a glass pane using the crafting table in Minecraft."
+    ]},
+    "craft item furnace": {"instruct":[
+        "Create a furnace using your crafting table.",
+        "Construct a furnace at the crafting table.",
+        "Construct a furnace at your crafting table.",
+        "Build a furnace",
+        "Construct a furnace"
+    ]},
+    "craft item stone pickaxe": {"instruct":[
+        "Craft a stone pickaxe",
+        "Create a stone pickaxe",
+        "Create a stone pickaxe using crafting table.",
+        "Construct a stone pickaxe using the crafting table in Minecraft.",
+        "Create a stone pickaxe by utilizing the crafting table in Minecraft."
+    ]},
+    "craft item shield": {"instruct":[
+        "Create a shield.",
+        "Craft a shield.",
+        "Construct a shield",
+        "Create a shield using the crafting table.",
+        "Assemble a shield at the crafting table."
+    ]},
+    "craft item iron leggings": {"instruct":[
+        "Create a iron leggings",
+        "Craft a pair of iron leggings",
+        "Create a iron leggings with the crafting table.",
+        "Create a set of iron pants"
+    ]}
+}

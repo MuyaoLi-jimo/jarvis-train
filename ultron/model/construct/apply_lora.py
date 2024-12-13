@@ -55,11 +55,11 @@ def apply_lora(base_model_path, enable_processor, target_model_path, lora_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-model-path", type=str, default="/scratch/mc_lmy/models/llama3-llava-next-8b-hf")
-    parser.add_argument("--lora-path", type=str, default="/scratch/mc_lmy/models/JARVIS/checkpoints/mc-llava_next_llama3_8b-lora-11-10-craft-craft_table-shell_agent-hard-llama-3-11-16-1-A100-c4-e3-b16-a1/checkpoint-6400")
+    parser.add_argument("--base-model-path", type=str, default="/scratch/mc_lmy/models/JARVIS/checkpoints/mc_llama3-llava-next-8b-hf-full-craft-craft_table-shell_agent-hard-llama-3-11-22-1-A100-c4-e3-b16-a4/checkpoint-1100")
+    parser.add_argument("--lora-path", type=str, default="/scratch/mc_lmy/models/JARVIS/checkpoints/mc_llama3-llava-next-8b-hf-lora-craft-craft_table-shell_agent-hard-llama-3-h1-11-24-1-A100-c8-e1-b8-a4/checkpoint-200")
     parser.add_argument("--enable-processor", type=bool, default= True,)
     #注意不要把lora加进去
-    parser.add_argument("--target-model-path", type=str, default="/scratch/mc_lmy/models/mc-llava_next_llama3_8b-lora-11-10-craft-craft_table-shell_agent-hard-llama-3-11-16-1-A100-c4-e3-b16-a1-6400")
+    parser.add_argument("--target-model-path", type=str, default="/scratch/mc_lmy/models/mc_llama3-llava-next-8b-hf-LORA-craft-craft_table-shell_agent-hard-llama-3-h1-11-24-1-A100-c8-e1-b8-a4-200")
     
     args = parser.parse_args()
 

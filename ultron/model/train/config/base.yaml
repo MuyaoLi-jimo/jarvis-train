@@ -1,0 +1,7 @@
+model:
+  lora_target_modules:
+    - "all-linear"
+  
+train:
+  use_sfttrainer: false
+

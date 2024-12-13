@@ -15,7 +15,6 @@ import ray
 def resize_image(img, target_resolution = (224, 224)):
     return cv2.resize(img, dsize=target_resolution, interpolation=cv2.INTER_LINEAR)
 
-
 def evaluate(video_path,checkpoints,environment_config:dict,model_config:dict,device="cuda:0",api_base=None):
 
     container = av.open(video_path, mode='w', format='mp4')
@@ -24,7 +23,10 @@ def evaluate(video_path,checkpoints,environment_config:dict,model_config:dict,de
     stream.height = 360
     stream.pix_fmt = 'yuv420p'
     
-    env = MyMinecraftWrapper(environment_config["env_config"], prev_action_obs=True)
+    if model_config["bpe"]:
+        env = MinecraftWrapper(environment_config["env_config"], prev_action_obs=True)
+    else:
+        env = MyMinecraftWrapper(environment_config["env_config"], prev_action_obs=True)
     agent = None
     if type(api_base)!=type(None):
         agent = agent_wrapper.VLLM_AGENT(checkpoint_path=checkpoints,openai_api_base=api_base,**model_config)
@@ -91,12 +93,24 @@ def multi_evaluate(args):
     ray.init()
     import os
     from pathlib import Path
-    video_fold  = os.path.join(args.video_main_fold, f"{args.checkpoints.split('/')[-1]}-{args.env_config.split('/')[-1]}") 
+    
+    model_ref_name = args.checkpoints.split('/')[-1]
+    if "checkpoint" in model_ref_name:
+        checkpoint_num = model_ref_name.split("-")[-1]
+        model_base_name = args.checkpoints.split('/')[-2]
+        model_ref_name = f"{model_base_name}-{checkpoint_num}"
+    
+    
+    video_fold  = os.path.join(args.video_main_fold, f"{model_ref_name}-{args.env_config.split('/')[-1]}") 
     if not os.path.exists(video_fold):
         Path(video_fold).mkdir(parents=True,exist_ok=True)
     
     model_config = dict(
-        temperature=args.temperature
+        temperature=args.temperature,
+        history_num = args.history_num,
+        instruction_type = args.instruction_type,
+        action_chunk_len = args.action_chunk_len,
+        bpe = args.bpe,
     )
     environment_config = dict(
         env_config = args.env_config,
@@ -126,17 +140,26 @@ if __name__ == "__main__":
     parser.add_argument('--env-config',"-e", type=str, default='jarvis-rt2/craft_crafting_table') #vpt/test_vpt
     parser.add_argument('--max-frames', type=int, default=200) #vpt/test_vpt
     parser.add_argument('--verbos', type=bool, default=False)
-    parser.add_argument('--checkpoints', type=str, default="/scratch/mc_lmy/models/mc-llava_next_llama3_8b-lora-11-10-craft-craft_table-shell_agent-hard-llama-3-11-16-1-A100-c4-e3-b16-a1-3600")
+    parser.add_argument('--checkpoints', type=str, default="/scratch/mc_lmy/models/mc_llama3-llava-next-8b-hf-LORA-craft-craft_table-shell_agent-hard-llama-3-h1-11-24-1-A100-c8-e1-b8-a4-200")
     #/home/mc_lmy/model/mc-llava_v1.6_vicuna_mistral_7b-LORA-embodied_mini_craft_10-10-08-llava-v1.6-A100-c4-e3-b16-a4-800") #vpt/test_vpt
     parser.add_argument('--device',type=str,default="cuda:1")
-    parser.add_argument('--api_base',type=str,default='http://localhost:9206/v1')
-    parser.add_argument('--video_main_fold',type=str,default='/scratch/mc_lmy/evaluate')
-
+    
+    parser.add_argument('--api-base',type=str,default='http://localhost:9206/v1')
+    parser.add_argument('--video-main-fold',type=str,default='/scratch/mc_lmy/evaluate')
+    
+    parser.add_argument('--instruction-type',type=str,default='recipe')
     parser.add_argument('--temperature','-t',type=float,default=0.7)
+    parser.add_argument('--history-num',type=int,default=0)
+    parser.add_argument('--action-chunk-len',type=int,default=1)
+    parser.add_argument('--bpe',type=int,default=0)
     args = parser.parse_args()
 
     model_config = dict(
-        temperature=args.temperature
+        temperature=args.temperature,
+        history_num = args.history_num,
+        instruction_type = args.instruction_type,
+        action_chunk_len = args.action_chunk_len,
+        bpe = args.bpe,
     )
     environment_config = dict(
         env_config = args.env_config,
@@ -145,10 +168,13 @@ if __name__ == "__main__":
     )
     if not args.api_base:
         args.api_base=None
+    
     if args.workers==0:
         environment_config["verbos"] = True
-        evaluate(video_path=f"{args.checkpoints.split('/')[-1]}-{args.env_config.split('/')[-1]}.mp4",checkpoints = args.checkpoints,environment_config = environment_config,device=args.device,model_config=model_config)
+        video_path = f"{args.checkpoints.split('/')[-1]}-{args.env_config.split('/')[-1]}.mp4"
+        evaluate(video_path=video_path,checkpoints = args.checkpoints,environment_config = environment_config,device=args.device,model_config=model_config)
     elif args.workers==1:
+        video_path = f"{args.checkpoints.split('/')[-1]}-{args.env_config.split('/')[-1]}.mp4"
         evaluate(video_path=f"{args.checkpoints.split('/')[-1]}-{args.env_config.split('/')[-1]}.mp4",checkpoints = args.checkpoints,environment_config = environment_config,api_base=args.api_base,model_config=model_config)
     elif args.workers>1:
         multi_evaluate(args)

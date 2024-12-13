@@ -140,22 +140,33 @@ if __name__ == "__main__":
         default=[0, 1], 
         help="Comma-separated list of CUDA devices to use, e.g., '0,1,2'. Default is [0,1]."
     )
+    parser.add_argument("--limit-mm-per-prompt", type=int, default=4)
+    parser.add_argument("--max-model-len", type=int, default=4096)
     parser.add_argument("--port", type=int, default=5209)
     parser.add_argument("--model-path", type=str, default="/scratch/mc_lmy/models/mc-llava_next_llama3_8b-lora-11-10-craft-craft_table-shell_agent-hard-llama-3-11-16-1-A100-c4-e3-b16-a1-3600")
+    parser.add_argument("--chat-template", type=str, default="")
     parser.add_argument("--start", type=bool, default=False,help="True then start, kill then end")
 
     args = parser.parse_args()
     log_path = Path(__file__).parent/"log"/f"{args.model_path.split('/')[-1]}.log"
     log_path.parent.mkdir(parents=True,exist_ok=True)
+    model_path = args.model_path
+    limit_mm_per_prompt = args.limit_mm_per_prompt
+    chat_template = ""
+    if "vicuna" in model_path:
+        limit_mm_per_prompt = 1
+    if args.chat_template:
+        chat_template = args.chat_template
     if args.start:
         run_vllm_server(devices = args.cuda_visible_devices,
                         device_num=args.card_num,
-                        model_path=args.model_path,
+                        model_path=model_path,
                         port=args.port,
-                        max_model_len=4096,
+                        max_model_len=args.max_model_len,
                         log_path=log_path,
                         gpu_memory_utilization=0.95,
-                        limit_mm_per_prompt=4,)
+                        limit_mm_per_prompt=limit_mm_per_prompt,
+                        chat_template = chat_template,)
     else:
         stop_vllm_server(log_path=log_path)
         

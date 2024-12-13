@@ -11,6 +11,7 @@ def apply_full_model(args):
             processor.save_pretrained(args.sft_model_path)
 
     
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-model-path", type=str, default="/home/mc_lmy/model/llava-v1.6-mistral-7b-hf")

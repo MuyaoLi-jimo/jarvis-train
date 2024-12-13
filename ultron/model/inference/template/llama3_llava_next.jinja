@@ -1,0 +1,14 @@
+{% for message in messages %}
+{{ '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'}}
+    {# Render content in order of appearance #}
+    {% for content in message['content'] %}
+        {% if content['type'] == 'image' %}
+            {{ '<image>' }}
+        {% elif content['type'] == 'text' %}
+            {{ '\n' + content['text'] + '<|eot_id|>' }}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+{% if add_generation_prompt %}
+    {{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}
+{% endif %}
