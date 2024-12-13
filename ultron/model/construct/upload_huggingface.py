@@ -34,7 +34,7 @@ def upload_file():
     
     from huggingface_hub import HfApi
 
-def upload_file(file_name="/home/mc_lmy/workspace/mark2.tar.gz"):
+def upload_file(file_name="/home/limuyao/workspace/mark2.tar.gz"):
     api = HfApi()
     api.upload_file(
         path_or_fileobj="/scratch/mc_lmy/models/JARVIS/checkpoints/mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-c8-e3-b16-a4/checkpoint-1200",

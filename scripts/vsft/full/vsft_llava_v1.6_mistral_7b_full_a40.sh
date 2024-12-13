@@ -9,7 +9,7 @@ card_type="A100"
 card_number=4
 cuda_visible_devices=0,1,2,3
 training_port=20014
-dataset_name="/home/mc_lmy/datas/jarvis-dataset-002/embodied_mini_10-23-craft-craft_table-shell_agent-easy-mistrall"
+dataset_name="/home/limuyao/datas/jarvis-dataset-002/embodied_mini_10-23-craft-craft_table-shell_agent-easy-mistrall"
 version="mc-llava_v1.6_mistral_7b-full-embodied_mini_10-23-craft-craft_table-shell_agent-easy-mistral-10-24"  # {model_version}_{dataset_version}_{training_date}"
 WANDB_NAME="$version-$card_type-c$card_number-e$epoch-b$batch-a$gradient_accumulation_steps"
 

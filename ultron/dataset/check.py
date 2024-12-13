@@ -62,4 +62,4 @@ def check_dataset():
 
 if __name__ == "__main__":
     check_dataset()
-    #json_file1 = load_json_file("/home/mc_lmy/datas/10-08_craft-10_dataset/embodied_mini_craft_10-10-08-llama-2-train.json")
+    #json_file1 = load_json_file("/home/limuyao/datas/10-08_craft-10_dataset/embodied_mini_craft_10-10-08-llama-2-train.json")

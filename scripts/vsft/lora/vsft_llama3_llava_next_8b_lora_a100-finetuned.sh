@@ -9,7 +9,7 @@ card_type="A100"
 card_number=4
 cuda_visible_devices=4,5,6,7
 training_port=20001
-dataset_name="/home/mc_lmy/datas/11-10-craft-craft_table-shell_agent-hard/output/11-10-craft-craft_table-shell_agent-hard-llama-3-m1"
+dataset_name="/home/limuyao/datas/11-10-craft-craft_table-shell_agent-hard/output/11-10-craft-craft_table-shell_agent-hard-llama-3-m1"
 version="mc-llava_next_llama3_8b-LORA-embodied_v4_8_28-8_29-A800-c8-e3-b4-a4-craft-craft_table-shell_agent-hard-llama-3-11-12-2"  # {model_version}_{dataset_version}_{training_date}"
 WANDB_NAME="$version-$card_type-c$card_number-e$epoch-b$batch-a$gradient_accumulation_steps"
 

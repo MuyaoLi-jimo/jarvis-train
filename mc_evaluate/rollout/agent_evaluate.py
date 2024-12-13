@@ -141,7 +141,7 @@ if __name__ == "__main__":
     parser.add_argument('--max-frames', type=int, default=200) #vpt/test_vpt
     parser.add_argument('--verbos', type=bool, default=False)
     parser.add_argument('--checkpoints', type=str, default="/scratch/mc_lmy/models/mc_llama3-llava-next-8b-hf-LORA-craft-craft_table-shell_agent-hard-llama-3-h1-11-24-1-A100-c8-e1-b8-a4-200")
-    #/home/mc_lmy/model/mc-llava_v1.6_vicuna_mistral_7b-LORA-embodied_mini_craft_10-10-08-llava-v1.6-A100-c4-e3-b16-a4-800") #vpt/test_vpt
+    #/home/limuyao/model/mc-llava_v1.6_vicuna_mistral_7b-LORA-embodied_mini_craft_10-10-08-llava-v1.6-A100-c4-e3-b16-a4-800") #vpt/test_vpt
     parser.add_argument('--device',type=str,default="cuda:1")
     
     parser.add_argument('--api-base',type=str,default='http://localhost:9206/v1')

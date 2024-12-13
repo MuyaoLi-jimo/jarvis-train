@@ -9,7 +9,7 @@ card_type="A100"
 card_number=4
 cuda_visible_devices=0,1,2,3
 training_port=20011
-dataset_name="/home/mc_lmy/datas/11-10-craft-craft_table-shell_agent-hard/output/11-10-craft-craft_table-shell_agent-hard-mistral"
+dataset_name="/home/limuyao/datas/11-10-craft-craft_table-shell_agent-hard/output/11-10-craft-craft_table-shell_agent-hard-mistral"
 version="mc-llava_v1.6_vicuna_7b-lora-11-10-craft-craft_table-shell_agent-hard-mistral-11-10-2"  # {model_version}_{dataset_version}_{training_date}
 WANDB_NAME="$version-$card_type-c$card_number-e$epoch-b$batch-a$gradient_accumulation_steps"
 

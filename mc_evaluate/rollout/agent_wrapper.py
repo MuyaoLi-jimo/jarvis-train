@@ -230,7 +230,7 @@ class VLLM_AGENT:
 
 if __name__ == "__main__":
     from PIL import Image
-    image_path = r"/home/mc_lmy/datas/jarvis-dataset-003/image/602a3447-ecce-47f1-8964-31b39ae27399888.jpg"
+    image_path = r"/home/limuyao/datas/jarvis-dataset-003/image/602a3447-ecce-47f1-8964-31b39ae27399888.jpg"
     image = Image.open(image_path)
     openai_api_base='http://localhost:9204/v1'
     checkpoint_path= "/scratch/mc_lmy/models/llama3-llava-next-8b-hf"

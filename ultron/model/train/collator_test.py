@@ -444,7 +444,7 @@ if __name__ == "__main__":
 
     exit()
     from datasets import load_dataset
-    dataset_name="/home/mc_lmy/datas/jarvis-dataset-004/11-06-craft-craft_table-shell_agent-normal-mistral"
+    dataset_name="/home/limuyao/datas/jarvis-dataset-004/11-06-craft-craft_table-shell_agent-normal-mistral"
         
     train_dataset_file = dataset_name + "-train.json"
     eval_dataset_file = dataset_name + "-valid.json"

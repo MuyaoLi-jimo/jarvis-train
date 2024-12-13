@@ -16,7 +16,7 @@ CUDA_VISIBLE_DEVICES=$cuda_visible_devices vllm serve $model_name_or_path \
     --tensor-parallel-size $card_num \
     --trust-remote-code \
     --limit-mm-per-prompt image=4 \
-    #--chat-template /home/mc_lmy/workspace/jarvis-train/ultron/model/inference/template/template_llava.jinja \
+    #--chat-template /home/limuyao/workspace/jarvis-train/ultron/model/inference/template/template_llava.jinja \
     #--dtype "float32" \
     #--kv-cache-dtype "fp8" \
     #--cpu-offload-gb 10 \

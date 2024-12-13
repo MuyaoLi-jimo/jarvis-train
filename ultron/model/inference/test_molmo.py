@@ -22,7 +22,7 @@ import requests
 from PIL import Image
 
 # process the image and text
-image_path = "/home/mc_lmy/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e47.jpg"
+image_path = "/home/limuyao/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e47.jpg"
 
 inputs = processor.process(
     images=[Image.open(image_path)],

@@ -11,8 +11,8 @@ def zipdir(path, ziph):
                                        os.path.join(path, '..')))
 
 # 打开一个 zip 文件以写入
-with zipfile.ZipFile('/home/mc_lmy/mark2.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
+with zipfile.ZipFile('/home/limuyao/mark2.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
     # 添加不同的目录到 ZIP 文件
-    #zipdir('/home/mc_lmy/workspace/Mark2', zipf)
-    #zipdir('/home/mc_lmy/workspace/MC_VLA_dataset', zipf)
-    zipdir('/home/mc_lmy/miniconda3/envs/mark2', zipf)
+    #zipdir('/home/limuyao/workspace/Mark2', zipf)
+    #zipdir('/home/limuyao/workspace/MC_VLA_dataset', zipf)
+    zipdir('/home/limuyao/miniconda3/envs/mark2', zipf)

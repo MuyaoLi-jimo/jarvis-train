@@ -9,7 +9,7 @@ card_type="A100"
 card_number=4
 cuda_visible_devices=0,1,2,3
 training_port=20012
-dataset_name="/home/mc_lmy/datas/jarvis-dataset-002/embodied_mini_10-23-craft-craft_table-shell_agent-easy-mistral"
+dataset_name="/home/limuyao/datas/jarvis-dataset-002/embodied_mini_10-23-craft-craft_table-shell_agent-easy-mistral"
 version="mc-llava_v1.6_mistral_7b-full-embodied_mini_10-23-craft-craft_table-shell_agent-easy-mistral-10-24"  # {model_version}_{dataset_version}_{training_date}"
 WANDB_NAME="$version-$card_type-c$card_number-e$epoch-b$batch-a$gradient_accumulation_steps"
 
@@ -20,7 +20,7 @@ export WANDB_NOTES="[24-10-25] 1.8k vision language convs convs (instruction sta
 
 deepspeed --include localhost:$cuda_visible_devices --master_port=$training_port ultron/model/train/vsft.py \
     --dataset_name $dataset_name \
-    --model_name_or_path "/home/mc_lmy/model/llava-v1.6-mistral-7b-hf" \
+    --model_name_or_path "/home/limuyao/model/llava-v1.6-mistral-7b-hf" \
     --report_to "wandb" \
     --learning_rate $learning_rate \
     --weight_decay 0. \

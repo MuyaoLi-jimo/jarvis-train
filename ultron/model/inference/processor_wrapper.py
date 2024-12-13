@@ -250,10 +250,10 @@ if __name__ == "__main__":
     device = "cuda:6"
     processor,model,LLM_backbone,VLM_backbone = load_model.load_visual_model(device=device,checkpoint_path=r"/scratch/mc_lmy/models/mc-llava_v1.6_mistral_7b-LORA-embodied_mini_10-30-craft-craft_table-shell_agent-normal-mistral-10-30-A100-c4-e10-b16-a1-576")
     processor_wrapper = ProcessorWrapper(processor,model_name=VLM_backbone)
-    image_paths = [rf"/home/mc_lmy/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e491.jpg",
-                   rf"/home/mc_lmy/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e491.jpg",
-                  rf"/home/mc_lmy/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e492.jpg",
-                  rf"/home/mc_lmy/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e493.jpg",
+    image_paths = [rf"/home/limuyao/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e491.jpg",
+                   rf"/home/limuyao/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e491.jpg",
+                  rf"/home/limuyao/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e492.jpg",
+                  rf"/home/limuyao/datas/jarvis-dataset-003/image/3d966b41-2299-4acd-b4b1-3fbbd7e653e493.jpg",
                   ]
 
     from rich import print
