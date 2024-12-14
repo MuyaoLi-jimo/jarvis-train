@@ -6,11 +6,11 @@ logging_step=1
 epoch=3
 learning_rate=1.4e-5
 card_type="A100"
-card_number=4
-cuda_visible_devices=4,5,6,7
+card_number=8
+cuda_visible_devices=0,1,2,3,4,5,6,7
 training_port=20005
 max_seq_length=2048
-dataset_name="/scratch/mc_lmy/datas/11-10-craft-craft_table-shell_agent-hard/output/11-10-craft-craft_table-shell_agent-hard-llama-3-h0-c4"
+dataset_name="/scratch/limuyao/datas/11-27-craft-10-shell_agent-hard/birch_planks/output/11-27-craft-10-shell_agent-hard-llama-3-h0"
 version="mc_llama3-llava-next-8b-hf-full-11-10-craft-craft_table-shell_agent-hard-llama-3-h0-c4-12-07-1"  # {model_version}_{dataset_version}_{training_date}"
 WANDB_NAME="$version-$card_type-c$card_number-e$epoch-b$batch-a$gradient_accumulation_steps"
 # #/scratch/mc_lmy/models/llama3-llava-next-8b-hf" \
@@ -20,34 +20,31 @@ export WANDB_MODE="offline" #和WANDB_RESUME没法兼容
 #export WANDB_RUN_ID="cytuj1g9"
 export WANDB_API_KEY=998c5dff7e8a2d9fb877a2492f1d9ac46aeda17d
 export WANDB_PROJECT=Scaling-Law_VLA_Train
-export WANDB_NOTES="[24-12-04]  vision language convs convs (instruction state action),with image augment"
+export WANDB_NOTES="[24-12-14]  vision language convs convs (instruction state action),with image augment"
 
-CUDA_VISIBLE_DEVICES=$cuda_visible_devices accelerate launch \
-    --config-file configs/accelerate_configs/deepspeed_zero2.yaml \
-    --num_processes $card_number \
-    --main_process_port $training_port \
-    ultron/model/train/vsft.py \
+deepspeed --include localhost:$cuda_visible_devices --master_port=$training_port ultron/model/train/vsft.py \
+    --deepspeed configs/deepspeed_config_s2.json \
     --dataset_name $dataset_name \
     --dataloader_num_workers 16 \
     --dataloader_pin_memory True \
-    --model_name_or_path "/scratch/mc_lmy/models/llama3-llava-next-8b-hf" \
+    --model_name_or_path "/public/models/llama3-llava-next-8b-hf" \
     --remove_unused_columns False \
     --report_to "wandb" \
     --learning_rate $learning_rate \
     --weight_decay 0. \
-    --max_grad_norm 10.0 \
+    --max_grad_norm 1.0 \
     --warmup_ratio 0.16 \
-    --warmup_steps 400 \
+    --warmup_steps 200 \
     --lr_scheduler_type "cosine" \
     --per_device_train_batch_size $batch \
     --per_device_eval_batch_size $batch \
     --gradient_accumulation_steps $gradient_accumulation_steps \
     --evaluation_strategy "steps" \
-    --eval_steps 100 \
+    --eval_steps 20 \
     --save_strategy "steps" \
     --save_steps 100 \
     --save_total_limit 20 \
-    --output_dir "/scratch/mc_lmy/models/JARVIS/checkpoints/$WANDB_NAME" \
+    --output_dir "/scratch/limuyao/models/JARVIS/checkpoints/$WANDB_NAME" \
     --run_name $WANDB_NAME \
     --logging_strategy "steps" \
     --logging_steps $logging_step \

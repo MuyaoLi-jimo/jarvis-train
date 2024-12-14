@@ -161,11 +161,14 @@ class MultimodalDataCollator:
             for instruction_beg_idx,instruction_end_idx in zip(beg_matches,end_matches):
                 label[instruction_beg_idx:instruction_end_idx]= -100
             
-
         if self.processor.tokenizer.pad_token_id is not None:
-            labels[labels == self.processor.tokenizer.pad_token_id] = -100
+            pad_mask = labels == self.processor.tokenizer.pad_token_id
+            if self.processor.tokenizer.pad_token_id == self.processor.tokenizer.eos_token_id:
+                pad_mask[:,1:]  = pad_mask[:,1:] & pad_mask[:,:-1]
+            labels[pad_mask] = -100
+        #import pdb; pdb.set_trace() 
         batch["labels"] = labels
-        #import pdb; pdb.set_trace()
+        
         return batch
     
 if __name__ == "__main__":
