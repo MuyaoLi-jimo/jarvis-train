@@ -3,23 +3,23 @@
 cuda_visible_devices="5,6"
 card_num=2
 port=9213
-workers=1
-max_frames=30
+workers=30
+max_frames=600
 temperature=1
-env_file="craft_crafting_table_multi"
+env_file="craft_birch_planks_multi"
 env_config="jarvis-rt2/$env_file"
 history_num=0
 action_chunk_len=1
-bpe=1
+bpe=0
 instruction_type="recipe" 
-base_model_path="/scratch/mc_lmy/models/llava-v1.6-vicuna-7b-hf" # llama3-llava-next-8b-hf"  #"/scratch/mc_lmy/models/llama3-llava-next-8b-hf"  #/scratch/mc_lmy/models/JARVIS/checkpoints/mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-c8-e3-b16-a4/checkpoint-1200
-model_local_path="mc_llava_v1.6_vicuna_7b-full-11-10-craft-craft_table-shell_agent-hard-llama-2-h0-c1-b512-12-08-1-A100-c4-e3-b16-a4"
+base_model_path="/public/models/llama3-llava-next-8b-hf" # llama3-llava-next-8b-hf"  #"/scratch/mc_lmy/models/llama3-llava-next-8b-hf"  #/scratch/mc_lmy/models/JARVIS/checkpoints/mc_llama3-llava-next-8b-hf-full-11-25-craft-10-shell_agent-hard-llama-3-h0-11-25-1-A100-c8-e3-b16-a4/checkpoint-1200
+model_local_path="mc_llama3-llava-next-8b-hf-full-11-27-craft-birch_planks-shell_agent-hard-llama-3-h0-c1-12-14-1-A100-c8-e3-b16-a4"
 
-for checkpoint in 2000; do  #800 900 1000 1100 1300
+for checkpoint in 100 200 300; do  #800 900 1000 1100 1300
     echo "Running for checkpoint $checkpoint..."
 
-    checkpoint_path="/scratch/mc_lmy/models/JARVIS/checkpoints/$model_local_path/checkpoint-$checkpoint"
-    model_name_or_path="/scratch/mc_lmy/models/$model_local_path-$checkpoint"
+    checkpoint_path="/scratch/limuyao/models/JARVIS/checkpoints/$model_local_path/checkpoint-$checkpoint"
+    model_name_or_path="/scratch/limuyao/models/$model_local_path-$checkpoint"
     log_path_name="$model_local_path-$checkpoint-$env_file"
 
     # Apply LoRA
@@ -61,7 +61,7 @@ for checkpoint in 2000; do  #800 900 1000 1100 1300
         --instruction-type $instruction_type \
         --action-chunk-len $action_chunk_len \
         --bpe $bpe\
-        --verbos True \
+        #--verbos True \
         
         
 
@@ -79,8 +79,8 @@ for checkpoint in 2000; do  #800 900 1000 1100 1300
 
     # Copy results to a temporary folder
     mkdir -p mc_evaluate/record/success_rate/$log_path_name
-    cp /scratch/mc_lmy/evaluate/$log_path_name/0.mp4 mc_evaluate/record/success_rate/$log_path_name/0.mp4
-    cp /scratch/mc_lmy/evaluate/$log_path_name/end.json mc_evaluate/record/success_rate/$log_path_name/end.json
-    cp /scratch/mc_lmy/evaluate/$log_path_name/image.png mc_evaluate/record/success_rate/$log_path_name/image.png
+    cp /scratch/limuyao/evaluate/$log_path_name/0.mp4 mc_evaluate/record/success_rate/$log_path_name/0.mp4
+    cp /scratch/limuyao/evaluate/$log_path_name/end.json mc_evaluate/record/success_rate/$log_path_name/end.json
+    cp /scratch/limuyao/evaluate/$log_path_name/image.png mc_evaluate/record/success_rate/$log_path_name/image.png
     sleep 90
 done

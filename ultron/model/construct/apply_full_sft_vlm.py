@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import shutil
 
 
 def apply_full_model(args):
@@ -9,13 +10,23 @@ def apply_full_model(args):
             from transformers import LlavaNextProcessor
             processor = LlavaNextProcessor.from_pretrained(base_model_path)
             processor.save_pretrained(args.sft_model_path)
-
+            if "vicuna" in base_model_path.name:
+                config_file = base_model_path / "preprocessor_config.json"
+                target_path = args.sft_model_path / "preprocessor_config.json"
+                
+                if config_file.exists():
+                    shutil.copy(str(config_file), str(target_path))
+                    print(f"Copied preprocessor_config.json from {config_file} to {target_path}")
+                else:
+                    print(f"Warning: {config_file} does not exist and could not be copied.")
+        
+                
     
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-model-path", type=str, default="/home/limuyao/model/llava-v1.6-mistral-7b-hf")
+    parser.add_argument("--base-model-path", type=str, default="/public/models/llava-v1.6-vicuna-13b-hf")
     parser.add_argument("--enable-processor", type=bool, default= True,)
-    parser.add_argument("--sft-model-path", type=str, default="/scratch/mc_lmy/models/JARVIS/checkpoints/mc-llava_v1.6_mistral_7b-full-embodied_mini_10-23-craft-craft_table-shell_agent-easy-mistral-10-24-A100-c4-e30-b16-a4/checkpoint-120")
+    parser.add_argument("--sft-model-path", type=str, default="mc-sft-llava_v1.6_vicuna_13b-mcqa_v3_12_25_277k-12_17-A100-c8-e1-b8-a1/checkpoint-4312")
     args = parser.parse_args()
     apply_full_model(args)

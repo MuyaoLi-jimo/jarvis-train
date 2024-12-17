@@ -161,6 +161,8 @@ def producing_loss(model_name):
     """
     notes = []
     raw_data_path = Path("mc_evaluate/record/loss_raw")/f"{model_name}.log"
+    if not raw_data_path.exists:
+        raise FileExistsError(f"Do not find {raw_data_path}")
     with open(raw_data_path,"r") as f:
         
         for line in f:
@@ -191,18 +193,32 @@ def producing_loss(model_name):
     record_data_path = Path("mc_evaluate/record/loss_process")/f"{model_name}.json"
     dump_json_file(record,record_data_path,if_backup=False)
 
-def get_losses(model_name:str):
+def get_losses(model_name:str,eval_step:int=100,normal_step_rate:float=1):
     from pathlib import Path
     loss_record = load_json_file(Path(__file__).parent.parent/"record"/"loss_process"/f"{model_name}.json")
+    train_losses = loss_record["train"]
+    train_losses_keys = list(train_losses.keys())
+    polished_training_loss = {}
+    # 在一般训练场景下需要几步
+    aligned_steps = len(train_losses)*normal_step_rate
+    jdx = float(0)
+    for step in range(aligned_steps):
+        int_jdx = int(jdx)
+        key = train_losses_keys[int_jdx]
+        value = train_losses[key]
+        polished_training_loss[step] = value
+        jdx+=1/normal_step_rate
+    loss_record["train"] = polished_training_loss
+    
     eval_losses = loss_record["eval"]
     polished_losses = {}
     for idx,(step,value) in enumerate(eval_losses.items()):
-        polished_losses[idx*100] = value
+        polished_losses[idx*eval_step*normal_step_rate] = value
     loss_record["eval"] = polished_losses
     precise_eval_losses = {str(step):value["eval_loss"] for step,value in polished_losses.items()}
     return precise_eval_losses,loss_record
 
-def get_success_record(model_name:str,task_name:str):
+def get_success_record(model_name:str,task_name:str,normal_step_rate:float):
     from pathlib import Path
     import re
     data_fold = Path(__file__).parent.parent/"record"/"success_rate"
@@ -217,7 +233,7 @@ def get_success_record(model_name:str,task_name:str):
                     label = label[1:]
                 if label[-1]=='-':
                     label = label[:-1]                
-                data_paths.append((path, int(label)))
+                data_paths.append((path, int(int(label)*normal_step_rate)))
     data_paths.sort(key=lambda x: x[1])
     success_records = []
     for data_path,label in data_paths:
@@ -235,8 +251,6 @@ def count_success_rate(success_records:List[tuple]):
             successes += success
         success_rates[inference_step]= successes/len(success_record)
     return success_rates
-
-
 
 def uploading_wandb(model:str,task:str,loss_record:dict,success_rates):
     """上传step-train_loss-eval_loss-success_rate"""
@@ -272,21 +286,26 @@ def uploading_wandb(model:str,task:str,loss_record:dict,success_rates):
 def draw_whole_pictures(max_step:int):
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model-name',type=str,default='mc_llama3-llava-next-8b-hf-full-11-27-craft-snow_block-shell_agent-hard-llama-3-h0-12-06-1-A100-c4-e3-b16-a4')#mc_llama3-llava-next-8b-hf-full-11-27-craft-crimson_pressure_plate-shell_agent-hard-llama-3-h0-12-04-1-A100-c4-e3-b16-a4')
-    parser.add_argument('--task-name',"-e", type=str, default='jarvis-rt2/craft_snow_block_multi') #vpt/test_vpt
+    parser.add_argument('--model-name',type=str,default='mc_llama3-llava-next-8b-hf-full-11-27-craft-birch_planks-shell_agent-hard-llama-3-h0-c1-12-14-1-A100-c8-e3-b16-a4')#mc_llama3-llava-next-8b-hf-full-11-27-craft-crimson_pressure_plate-shell_agent-hard-llama-3-h0-12-04-1-A100-c4-e3-b16-a4')
+    parser.add_argument('--task-name',"-t", type=str, default='jarvis-rt2/craft_birch_planks_multi') #vpt/test_vpt
+    parser.add_argument('--eval_step',"-e", type=int, default=20,help="during training, how many step do you eval?") 
+    parser.add_argument('--normal_step_rate',"-n", type=int, default=2,help="the training step represent how many steps when you set batchsize=16,a=4,card_num=4？") 
     args = parser.parse_args()
     task_name= args.task_name.split("/")[-1]
     # 获取原始的训练数据
-    #producing_loss(args.model_name)
+    producing_loss(args.model_name)
     
     # 处理loss数据
-    eval_loss_record,train_loss_record = get_losses(args.model_name)
+    eval_loss_record,train_loss_record = get_losses(args.model_name,args.eval_step,args.normal_step_rate)
+    print(eval_loss_record)
     # 获取原始成功率数据
-    success_records = get_success_record(args.model_name,task_name)
+    success_records = get_success_record(args.model_name,task_name,args.normal_step_rate)
     # 处理成功率数据
     success_rates = count_success_rate(success_records)
+    print(success_rates)
+
     uploading_wandb(args.model_name,task_name,train_loss_record,success_rates)
-    exit()
+
 
 
     plot_success_rates(args.model_name,task_name,success_rates,file_path="mc_evaluate/record/images/success_rate-with-train_steps.png")

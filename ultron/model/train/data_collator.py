@@ -35,8 +35,8 @@ class MultimodalDataCollator:
             self.tokenize_redundant = 1
         elif 'vicuna' in model_name_or_path:
             self.model_type = "llama-2"
-            self.user_template = "USER: "
-            self.assistant_template = "ASSISTANT: "
+            self.user_template = " USER: "
+            self.assistant_template = " ASSISTANT: "
             self.tokenize_redundant = 1
         elif "llama-3" in model_name_or_path or "llama3" in  model_name_or_path or "llama_3" in model_name_or_path:
             self.model_type = "llama-3"
@@ -70,7 +70,6 @@ class MultimodalDataCollator:
                     text = prepare_conversation_for_molmo(example)
                 elif "vicuna" in self.model_name_or_path:
                     text = self.processor.tokenizer.apply_chat_template(example["conversations"],tokenize=False,)
-                    
                 else:
                     text = prepare_conversation_text_with_images(example, self.processor.tokenizer)  #合并<image>，并转化为加入chat template的版本
             else:
@@ -156,7 +155,13 @@ class MultimodalDataCollator:
             label_len,beg_len,end_len = len(label), len(instruction_beg_token_ids), len(instruction_end_token_ids)
             beg_matches = np.where((np_label[np.arange(label_len - beg_len + 1)[:, None] + np.arange(beg_len)] == instruction_beg_token_ids).all(axis=1))[0].tolist()
             end_matches = np.where((np_label[np.arange(label_len - end_len + 1)[:, None] + np.arange(end_len)] == instruction_end_token_ids).all(axis=1))[0].tolist()
-            assert len(beg_matches)==len(end_matches)
+            len_beg_matches = len(beg_matches)
+            len_end_matches = len(end_matches)
+            if len_beg_matches==len_end_matches+1:
+                end_matches.append(self.max_seq_length)
+                len_end_matches +=1
+                self.my_console.log("[red]Warning! the token length is probably out of max token length!")
+            assert len_beg_matches==len_end_matches
             label[:beg_matches[0]]=-100
             for instruction_beg_idx,instruction_end_idx in zip(beg_matches,end_matches):
                 label[instruction_beg_idx:instruction_end_idx]= -100
